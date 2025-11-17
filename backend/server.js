@@ -182,10 +182,38 @@ io.on('connection', (socket) => {
       
       // Отправляем состояние игры конкретному игроку
       const gameState = game.getState(normalizedUserId)
+      
+      // Проверяем, что доска инициализирована
+      if (!gameState.board || gameState.board.length === 0) {
+        console.error(`❌ ОШИБКА: Доска пустая для игры ${normalizedGameId}!`)
+        console.error(`   Статус игры: ${game.status}`)
+        console.error(`   Логика доски: ${game.logic ? 'есть' : 'отсутствует'}`)
+        if (game.logic) {
+          const boardFromLogic = game.logic.getBoard()
+          console.error(`   Доска из логики: ${boardFromLogic ? 'есть' : 'отсутствует'}, размер: ${boardFromLogic?.length || 0}x${boardFromLogic?.[0]?.length || 0}`)
+          // Исправляем: используем доску из логики
+          gameState.board = boardFromLogic
+        }
+      }
+      
       socket.emit('gameState', gameState)
       
       console.log(`✅ Socket: Пользователь ${normalizedUserId} подключился к игре ${normalizedGameId}`)
       console.log(`📊 Состояние доски: ${gameState.board ? 'есть' : 'отсутствует'}, размер: ${gameState.board?.length || 0}x${gameState.board?.[0]?.length || 0}`)
+      if (gameState.board && gameState.board.length > 0) {
+        // Подсчитываем фишки на доске
+        let whiteCount = 0
+        let blackCount = 0
+        for (let row = 0; row < gameState.board.length; row++) {
+          for (let col = 0; col < gameState.board[row].length; col++) {
+            if (gameState.board[row][col]) {
+              if (gameState.board[row][col].player === 'white') whiteCount++
+              if (gameState.board[row][col].player === 'black') blackCount++
+            }
+          }
+        }
+        console.log(`   Фишки на доске: белые=${whiteCount}, черные=${blackCount}`)
+      }
       console.log(`👤 Создатель игры: ${game.creator?.id} (тип: ${typeof game.creator?.id}), Текущий пользователь: ${normalizedUserId} (тип: ${typeof normalizedUserId})`)
       console.log(`🔐 Является создателем: ${game.isCreator(normalizedUserId)}`)
       

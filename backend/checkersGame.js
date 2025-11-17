@@ -141,9 +141,24 @@ export class CheckersGame {
       }
     }
 
+    // Получаем доску из логики
+    let board = this.logic.getBoard()
+    
+    // Проверяем, что доска инициализирована
+    if (!board || board.length === 0) {
+      console.error(`❌ ОШИБКА: Доска пустая в getState для игры ${this.gameId}!`)
+      console.error(`   Статус: ${this.status}, Логика: ${this.logic ? 'есть' : 'отсутствует'}`)
+      // Переинициализируем доску, если она пустая и игра еще не началась
+      if (this.status === 'waiting' && this.logic) {
+        console.log(`🔧 Переинициализация доски для игры ${this.gameId}`)
+        this.logic.board = this.logic.initializeBoard()
+        board = this.logic.getBoard()
+      }
+    }
+
     const state = {
       gameId: this.gameId,
-      board: this.logic.getBoard(),
+      board: board,
       currentPlayer: this.currentPlayer,
       status: this.status,
       winner: this.winner,
