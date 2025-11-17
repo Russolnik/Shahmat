@@ -187,11 +187,16 @@ if (bot) {
 // Создание игры
 async function handleCreateGame(chatId, userId, username, firstName) {
   try {
+    // Нормализуем userId (Telegram возвращает число)
+    const normalizedUserId = Number(userId) || userId
+    
     const user = {
-      id: userId,
+      id: normalizedUserId,
       username: username,
       first_name: firstName || username
     }
+    
+    console.log(`🎮 Создание игры пользователем ${user.username} (ID: ${user.id}, тип: ${typeof user.id})`)
 
     const gameId = gameManager.createGame(user)
     

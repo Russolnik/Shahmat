@@ -17,8 +17,15 @@ export class CheckersGame {
   }
 
   addPlayer(player) {
+    // Нормализуем ID для сравнения
+    const playerId = Number(player.id) || player.id
+    const whiteId = this.players.white ? (Number(this.players.white.id) || this.players.white.id) : null
+    const blackId = this.players.black ? (Number(this.players.black.id) || this.players.black.id) : null
+    
     // Проверка на игру с самим собой
-    if (this.players.white?.id === player.id || this.players.black?.id === player.id) {
+    if (whiteId === playerId || blackId === playerId) {
+      console.log(`❌ Попытка присоединения: игрок ${player.username} (ID: ${playerId}, тип: ${typeof playerId}) уже в игре`)
+      console.log(`   Белые: ${whiteId} (тип: ${typeof whiteId}), Черные: ${blackId} (тип: ${typeof blackId})`)
       throw new Error('Нельзя играть с самим собой')
     }
     
@@ -27,8 +34,10 @@ export class CheckersGame {
     // Если создатель уже черный, второй игрок становится белым
     if (!this.players.white) {
       this.players.white = player
+      console.log(`✅ Игрок ${player.username} (ID: ${playerId}) присоединился как БЕЛЫЕ`)
     } else if (!this.players.black) {
       this.players.black = player
+      console.log(`✅ Игрок ${player.username} (ID: ${playerId}) присоединился как ЧЕРНЫЕ`)
     } else {
       throw new Error('Игра уже заполнена')
     }
@@ -36,7 +45,7 @@ export class CheckersGame {
     // Когда оба игрока присоединились, меняем статус на waiting (ожидаем готовности)
     if (this.players.white && this.players.black) {
       this.status = 'waiting' // Ожидаем готовности обоих игроков
-      console.log(`Оба игрока присоединились: белые=${this.players.white.username}, черные=${this.players.black.username}`)
+      console.log(`🎮 Оба игрока присоединились: белые=${this.players.white.username} (ID: ${this.players.white.id}), черные=${this.players.black.username} (ID: ${this.players.black.id})`)
     }
   }
 
