@@ -45,6 +45,7 @@ if (bot) {
     const args = msg.text.split(' ')
     if (args.length > 1 && args[1]) {
       const gameId = args[1].trim().toUpperCase()
+      console.log(`🔗 Обработка /start команды с gameId: ${gameId} от пользователя ${userId}`)
       await handleJoin(chatId, userId, username, gameId, msg.from.first_name)
       return
     }
@@ -312,11 +313,17 @@ async function handleInvite(chatId, userId, username, gameId) {
 // Присоединение к игре
 async function handleJoin(chatId, userId, username, gameId, firstName) {
   try {
+    console.log(`🔍 Поиск игры ${gameId}...`)
+    console.log(`📋 Доступные игры: ${Array.from(gameManager.games.keys()).join(', ')}`)
+    
     const game = gameManager.getGame(gameId)
     if (!game) {
-      await bot.sendMessage(chatId, '❌ Игра не найдена. Проверьте ID.')
+      console.log(`❌ Игра ${gameId} не найдена в gameManager`)
+      await bot.sendMessage(chatId, `❌ Игра не найдена. Проверьте ID: ${gameId}`)
       return
     }
+    
+    console.log(`✅ Игра ${gameId} найдена! Статус: ${game.status}`)
 
     // Получаем username из Telegram, если доступен
     let userUsername = username

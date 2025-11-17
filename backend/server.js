@@ -80,11 +80,22 @@ app.post('/api/game/join/:id', async (req, res) => {
     const authHeader = req.headers.authorization
     const initData = authHeader?.replace('Bearer ', '')
     const user = validateAuth(initData)
-    const gameId = req.params.id
+    const gameId = req.params.id.toUpperCase()
+    
+    console.log(`🌐 API: Попытка присоединения к игре ${gameId} пользователем ${user.username} (ID: ${user.id})`)
+    console.log(`📋 Доступные игры: ${Array.from(gameManager.games.keys()).join(', ')}`)
+    
+    const game = gameManager.getGame(gameId)
+    if (!game) {
+      console.log(`❌ API: Игра ${gameId} не найдена`)
+      return res.status(404).json({ success: false, error: 'Игра не найдена' })
+    }
     
     gameManager.joinGame(gameId, user)
+    console.log(`✅ API: Пользователь ${user.username} успешно присоединился к игре ${gameId}`)
     res.json({ success: true })
   } catch (error) {
+    console.error(`❌ API: Ошибка присоединения к игре: ${error.message}`)
     res.status(400).json({ success: false, error: error.message })
   }
 })

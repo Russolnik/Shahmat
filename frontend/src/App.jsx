@@ -29,45 +29,59 @@ function App() {
 
   // Автоматическое присоединение к игре из URL (через бота)
   useEffect(() => {
-    if (urlParams?.gameId && isAuthenticated && user) {
+    if (urlParams?.gameId && isAuthenticated && user && !gameId) {
+      console.log(`🔗 Автоматическое присоединение к игре ${urlParams.gameId} из URL`)
       setGameId(urlParams.gameId)
       // Автоматически присоединяемся к игре
       joinGameFromBot(urlParams.gameId, user.id)
     }
-  }, [urlParams, isAuthenticated, user])
+  }, [urlParams, isAuthenticated, user, gameId])
 
   const joinGameFromBot = async (id, userId) => {
-    if (!isAuthenticated || !id) return
+    if (!isAuthenticated || !id) {
+      console.log('⚠️ joinGameFromBot: пропущено - не авторизован или нет ID')
+      return
+    }
+    
+    console.log(`🔗 joinGameFromBot: присоединение к игре ${id}`)
     setLoading(true)
     
     try {
       const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
       const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
-      const response = await fetch(`${apiPath}/game/join/${id}`, {
+      const url = `${apiPath}/game/join/${id.toUpperCase()}`
+      console.log(`📡 Запрос к API: ${url}`)
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user.initData}`
         }
       })
+      
+      console.log(`📥 Ответ API: статус ${response.status}`)
       const data = await response.json()
+      console.log(`📥 Данные ответа:`, data)
+      
       if (data.success) {
-        setGameId(id)
+        setGameId(id.toUpperCase())
         setError(null)
         showInfo('Вы присоединились к игре!', 3000)
       } else {
         const errorMsg = data.error || 'Не удалось присоединиться к игре'
         setError(errorMsg)
         showError(errorMsg, 4000)
+        setLoading(false) // Останавливаем загрузку при ошибке
       }
     } catch (error) {
-      console.error('Ошибка присоединения к игре:', error)
+      console.error('❌ Ошибка присоединения к игре:', error)
       const errorMsg = 'Не удалось присоединиться к игре.'
       setError(errorMsg)
       showError(errorMsg, 4000)
-    } finally {
-      setLoading(false)
+      setLoading(false) // Останавливаем загрузку при ошибке
     }
+    // Убираем finally, чтобы загрузка продолжалась только при успехе (для ожидания socket подключения)
   }
 
   useEffect(() => {
