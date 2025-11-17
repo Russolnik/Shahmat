@@ -211,7 +211,7 @@ function App() {
     setLoading(true)
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || ''
+      const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
       const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
       const response = await fetch(`${apiPath}/game/create`, {
         method: 'POST',
@@ -251,7 +251,7 @@ function App() {
     setLoading(true)
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || ''
+      const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
       const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
       const response = await fetch(`${apiPath}/game/join/${id}`, {
         method: 'POST',

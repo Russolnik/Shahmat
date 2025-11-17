@@ -63,6 +63,12 @@ if (bot) {
         ],
         [
           { text: '📖 Правила', callback_data: 'rules' }
+        ],
+        [
+          { 
+            text: '🎮 Открыть приложение', 
+            web_app: { url: MINI_APP_URL }
+          }
         ]
       ]
     }
@@ -133,7 +139,8 @@ if (bot) {
       } else if (data === 'rules') {
         await handleRules(chatId)
       } else if (data === 'back_to_menu') {
-        await bot.sendMessage(chatId, 'Выберите действие:', {
+        await bot.sendMessage(chatId, '🎮 <b>Меню</b>\n\nВыберите действие:', {
+          parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: [
               [
@@ -142,6 +149,12 @@ if (bot) {
               ],
               [
                 { text: '📖 Правила', callback_data: 'rules' }
+              ],
+              [
+                { 
+                  text: '🎮 Открыть приложение', 
+                  web_app: { url: MINI_APP_URL }
+                }
               ]
             ]
           }
@@ -620,7 +633,40 @@ export const notifyDraw = async (gameId, player1, player2) => {
   }
 }
 
+// Настройка постоянного меню команд
 if (bot) {
+  bot.setMyCommands([
+    { command: 'start', description: 'Главное меню' },
+    { command: 'menu', description: 'Показать меню' }
+  ])
+  
+  // Команда /menu
+  bot.onText(/\/menu/, async (msg) => {
+    const chatId = msg.chat.id
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: '🎮 Создать игру', callback_data: 'create_game' },
+          { text: '🔍 Найти игру', callback_data: 'find_game' }
+        ],
+        [
+          { text: '📖 Правила', callback_data: 'rules' }
+        ],
+        [
+          { 
+            text: '🎮 Открыть приложение', 
+            web_app: { url: MINI_APP_URL }
+          }
+        ]
+      ]
+    }
+    
+    await bot.sendMessage(chatId, '🎮 <b>Меню</b>\n\nВыберите действие:', {
+      parse_mode: 'HTML',
+      reply_markup: keyboard
+    })
+  })
+  
   console.log('🤖 Telegram бот запущен и готов к работе')
 }
 

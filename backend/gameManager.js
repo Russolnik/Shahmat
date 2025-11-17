@@ -20,12 +20,12 @@ export class GameManager {
     }
     
     // Проверка на игру с самим собой
-    if (game.players.white?.id === player.id) {
+    if (game.players.white?.id === player.id || game.players.black?.id === player.id) {
       throw new Error('Нельзя играть с самим собой')
     }
     
     game.addPlayer(player)
-    console.log(`Игрок ${player.username} присоединился к игре ${gameId}`)
+    console.log(`Игрок ${player.username} присоединился к игре ${gameId} как ${game.players.white?.id === player.id ? 'белые' : 'черные'}`)
   }
 
   getGame(gameId) {

@@ -12,8 +12,8 @@ export class CheckersGame {
     this.logic = new CheckersLogic()
     this.status = 'waiting' // waiting, active, finished
     this.winner = null
-    // Рандомный начальный ход
-    this.currentPlayer = Math.random() < 0.5 ? 'white' : 'black'
+    // Белые всегда ходят первыми (стандартные правила шашек)
+    this.currentPlayer = 'white'
   }
 
   addPlayer(player) {
@@ -22,14 +22,18 @@ export class CheckersGame {
       throw new Error('Нельзя играть с самим собой')
     }
     
+    // Присваиваем игрока в свободный слот (белый или черный уже определен при создании)
     if (!this.players.white) {
       this.players.white = player
-      this.status = 'active'
     } else if (!this.players.black) {
       this.players.black = player
-      this.status = 'active'
     } else {
       throw new Error('Игра уже заполнена')
+    }
+    
+    // Когда оба игрока присоединились, меняем статус на active
+    if (this.players.white && this.players.black) {
+      this.status = 'waiting' // Ожидаем готовности обоих игроков
     }
   }
 
