@@ -4,17 +4,19 @@ import './Board.css'
 const Board = ({ board, selectedCell, possibleMoves, onCellClick, myPlayer }) => {
   // Переворачиваем доску так, чтобы свои фишки всегда были снизу
   // На сервере: белые в строках 0-2 (сверху), чёрные в строках 5-7 (снизу)
-  // Если играем белыми - белые должны быть снизу (переворачиваем)
+  // Если играем белыми - белые должны быть снизу (переворачиваем по вертикали)
   // Если играем чёрными - чёрные уже снизу (не переворачиваем)
   const isFlipped = myPlayer === 'white'
   
   // Преобразуем координаты отображения в оригинальные (для сервера)
+  // Переворачиваем только по вертикали (строки), колонки не трогаем
   const reverseTransformRow = (displayRow) => {
     return isFlipped ? 7 - displayRow : displayRow
   }
   
   const reverseTransformCol = (displayCol) => {
-    return isFlipped ? 7 - displayCol : displayCol
+    // Колонки не переворачиваем
+    return displayCol
   }
 
   const isDarkCell = (row, col) => {
@@ -60,14 +62,11 @@ const Board = ({ board, selectedCell, possibleMoves, onCellClick, myPlayer }) =>
   const displayBoard = useMemo(() => {
     if (!isFlipped) return board
     
-    // Переворачиваем доску
+    // Переворачиваем доску только по вертикали (строки), колонки оставляем как есть
     const flipped = []
     for (let i = board.length - 1; i >= 0; i--) {
-      const flippedRow = []
-      for (let j = board[i].length - 1; j >= 0; j--) {
-        flippedRow.push(board[i][j])
-      }
-      flipped.push(flippedRow)
+      // Берем строку как есть, не переворачиваем колонки
+      flipped.push([...board[i]])
     }
     return flipped
   }, [board, isFlipped])

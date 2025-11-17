@@ -3,17 +3,18 @@ import { CheckersLogic } from './checkersLogic.js'
 export class CheckersGame {
   constructor(gameId, creator) {
     this.gameId = gameId
-    // Рандомное определение, кто играет белыми, а кто чёрными
-    const isCreatorWhite = Math.random() < 0.5
+    // Создатель пока не имеет цвета - будет определен при присоединении второго игрока
     this.players = {
-      white: isCreatorWhite ? creator : null,
-      black: isCreatorWhite ? null : creator
+      white: null,
+      black: null
     }
     this.logic = new CheckersLogic()
     this.status = 'waiting' // waiting, active, finished
     this.winner = null
     // Белые всегда ходят первыми (стандартные правила шашек)
     this.currentPlayer = 'white'
+    // Режим с фуками (по умолчанию выключен)
+    this.fukiMode = false
   }
 
   addPlayer(player) {
@@ -22,22 +23,31 @@ export class CheckersGame {
     const whiteId = this.players.white ? (Number(this.players.white.id) || this.players.white.id) : null
     const blackId = this.players.black ? (Number(this.players.black.id) || this.players.black.id) : null
     
-    // Проверка на игру с самим собой
-    if (whiteId === playerId || blackId === playerId) {
-      console.log(`❌ Попытка присоединения: игрок ${player.username} (ID: ${playerId}, тип: ${typeof playerId}) уже в игре`)
-      console.log(`   Белые: ${whiteId} (тип: ${typeof whiteId}), Черные: ${blackId} (тип: ${typeof blackId})`)
-      throw new Error('Нельзя играть с самим собой')
+    // Проверка на игру с самим собой - только если игрок УЖЕ в игре
+    if ((whiteId && whiteId === playerId) || (blackId && blackId === playerId)) {
+      console.log(`⚠️ Игрок ${player.username} (ID: ${playerId}) уже в игре, пропускаем повторное присоединение`)
+      return // Не выбрасываем ошибку, просто игнорируем
     }
     
-    // Присваиваем игрока в свободный слот
-    // Если создатель уже белый, второй игрок становится черным
-    // Если создатель уже черный, второй игрок становится белым
-    if (!this.players.white) {
+    // Если оба слота пустые - это первый игрок (создатель)
+    if (!this.players.white && !this.players.black) {
+      // Рандомно определяем цвет создателя
+      const isCreatorWhite = Math.random() < 0.5
+      if (isCreatorWhite) {
+        this.players.white = player
+        console.log(`✅ Создатель ${player.username} (ID: ${playerId}) присоединился как БЕЛЫЕ`)
+      } else {
+        this.players.black = player
+        console.log(`✅ Создатель ${player.username} (ID: ${playerId}) присоединился как ЧЕРНЫЕ`)
+      }
+    }
+    // Если один слот занят - это второй игрок, он получает противоположный цвет
+    else if (!this.players.white) {
       this.players.white = player
-      console.log(`✅ Игрок ${player.username} (ID: ${playerId}) присоединился как БЕЛЫЕ`)
+      console.log(`✅ Второй игрок ${player.username} (ID: ${playerId}) присоединился как БЕЛЫЕ`)
     } else if (!this.players.black) {
       this.players.black = player
-      console.log(`✅ Игрок ${player.username} (ID: ${playerId}) присоединился как ЧЕРНЫЕ`)
+      console.log(`✅ Второй игрок ${player.username} (ID: ${playerId}) присоединился как ЧЕРНЫЕ`)
     } else {
       throw new Error('Игра уже заполнена')
     }
@@ -46,7 +56,15 @@ export class CheckersGame {
     if (this.players.white && this.players.black) {
       this.status = 'waiting' // Ожидаем готовности обоих игроков
       console.log(`🎮 Оба игрока присоединились: белые=${this.players.white.username} (ID: ${this.players.white.id}), черные=${this.players.black.username} (ID: ${this.players.black.id})`)
+      console.log(`🎯 Белые ходят первыми (currentPlayer: ${this.currentPlayer})`)
     }
+  }
+  
+  toggleFukiMode() {
+    this.fukiMode = !this.fukiMode
+    this.logic.setFukiMode(this.fukiMode)
+    console.log(`🔥 Режим фуков: ${this.fukiMode ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`)
+    return this.fukiMode
   }
 
   getState(userId = null) {
@@ -75,7 +93,8 @@ export class CheckersGame {
       status: this.status,
       winner: this.winner,
       myPlayer,
-      opponent
+      opponent,
+      fukiMode: this.fukiMode
     }
 
     return state

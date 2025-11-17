@@ -58,6 +58,21 @@
   transform: translateY(0);
 }
 
+.control-btn.share {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+  font-size: 1.2rem;
+}
+
+.control-btn.share:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(59, 130, 246, 0.5);
+}
+
+.control-btn.share:active {
+  transform: translateY(0);
+}
+
 .control-btn.rules {
   background: var(--glass-bg);
   backdrop-filter: blur(20px);
@@ -81,9 +96,58 @@
   width: 100%;
   text-align: center;
   margin-top: 0.5rem;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
   font-family: 'Courier New', monospace;
   letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.game-id-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.game-id-value {
+  color: var(--text-primary);
+  font-weight: 700;
+  background: var(--glass-bg);
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: all;
+}
+
+.game-id-value:hover {
+  background: var(--highlight);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.game-id-copied {
+  color: var(--success);
+  font-weight: 600;
+  animation: fadeIn 0.3s ease;
+}
+
+.control-btn.share {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+  font-size: 1.2rem;
+}
+
+.control-btn.share:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(59, 130, 246, 0.5);
+}
+
+.control-btn.share:active {
+  transform: translateY(0);
 }
 

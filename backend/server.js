@@ -203,6 +203,17 @@ io.on('connection', (socket) => {
     const moves = game.getPossibleMoves(row, col)
     callback(moves)
   })
+  
+  socket.on('toggleFukiMode', () => {
+    if (!socket.gameId) return
+    const game = gameManager.getGame(socket.gameId)
+    if (!game) return
+    
+    const newMode = game.toggleFukiMode()
+    const gameState = game.getState(socket.userId)
+    io.to(`game:${socket.gameId}`).emit('gameState', gameState)
+    io.to(`game:${socket.gameId}`).emit('fukiModeChanged', newMode)
+  })
 
   socket.on('makeMove', ({ from, to }) => {
     if (!socket.gameId) return
@@ -217,8 +228,17 @@ io.on('connection', (socket) => {
         io.to(`game:${socket.gameId}`).emit('moveResult', {
           success: true,
           gameState,
-          becameKing: result.becameKing || false
+          becameKing: result.becameKing || false,
+          fukiBurned: result.fukiBurned || false
         })
+        
+        // Уведомление о сгорании фишки в режиме фуков
+        if (result.fukiBurned) {
+          io.to(`game:${socket.gameId}`).emit('fukiBurned', {
+            row: to.row,
+            col: to.col
+          })
+        }
 
         // Уведомление о победе через бота
         if (result.gameOver && game.status === 'finished') {

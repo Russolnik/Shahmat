@@ -24,10 +24,10 @@ export class GameManager {
     const whiteId = game.players.white ? (Number(game.players.white.id) || game.players.white.id) : null
     const blackId = game.players.black ? (Number(game.players.black.id) || game.players.black.id) : null
     
-    // Проверка на игру с самим собой
-    if (whiteId === playerId || blackId === playerId) {
-      console.log(`❌ Попытка присоединения: игрок ${player.username} (ID: ${playerId}) уже в игре (белые: ${whiteId}, черные: ${blackId})`)
-      throw new Error('Нельзя играть с самим собой')
+    // Если игрок уже в игре - просто возвращаемся (не выбрасываем ошибку)
+    if ((whiteId && whiteId === playerId) || (blackId && blackId === playerId)) {
+      console.log(`⚠️ Игрок ${player.username} (ID: ${playerId}) уже в игре ${gameId}, пропускаем`)
+      return
     }
     
     game.addPlayer(player)

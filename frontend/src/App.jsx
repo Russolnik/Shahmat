@@ -143,6 +143,15 @@ function App() {
       showSuccess('🎮 Игра началась! Оба игрока готовы!', 4000)
     })
     
+    socket.on('fukiModeChanged', (enabled) => {
+      console.log(`🔥 Режим фуков: ${enabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`)
+      if (enabled) {
+        showInfo('🔥 Режим фуков включен!', 3000)
+      } else {
+        showInfo('♟️ Режим фуков выключен', 3000)
+      }
+    })
+    
     socket.on('connect', () => {
       console.log('✅ Socket подключен')
     })
@@ -167,6 +176,11 @@ function App() {
           showSuccess('Фишка стала дамкой!', 2000)
         }
         
+        // Уведомление о сгорании фишки в режиме фуков
+        if (result.fukiBurned) {
+          showError('🔥 Фишка сгорела в огне!', 3000)
+        }
+        
         // Уведомление о победе
         if (result.gameState?.status === 'finished') {
           if (result.gameState.winner === result.gameState.myPlayer) {
@@ -180,6 +194,10 @@ function App() {
       } else {
         showError(result.error || 'Неверный ход', 3000)
       }
+    })
+    
+    socket.on('fukiBurned', ({ row, col }) => {
+      console.log(`🔥 Фишка сгорела на позиции (${row}, ${col})`)
     })
 
     socket.on('error', (error) => {
@@ -351,6 +369,11 @@ function App() {
     socket.emit('setReady', gameId, user.id)
     showInfo('Вы готовы! Ожидаем соперника...', 2000)
   }
+  
+  const handleToggleFuki = () => {
+    if (!socket) return
+    socket.emit('toggleFukiMode')
+  }
 
   return (
     <div className="app-container" data-theme={theme}>
@@ -457,6 +480,8 @@ function App() {
                 gameId={gameId}
                 onSurrender={handleSurrender}
                 onDraw={handleDraw}
+                onToggleFuki={handleToggleFuki}
+                fukiMode={gameState?.fukiMode || false}
                 disabled={gameState?.status === 'finished'}
               />
             </>

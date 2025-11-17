@@ -1,6 +1,11 @@
 export class CheckersLogic {
   constructor() {
     this.board = this.initializeBoard()
+    this.fukiMode = false // Режим фуков (фишки "сгорают" при определенных условиях)
+  }
+  
+  setFukiMode(enabled) {
+    this.fukiMode = enabled
   }
 
   initializeBoard() {
@@ -170,6 +175,12 @@ export class CheckersLogic {
       
       const newCell = { ...fromCell }
       this.setCell(toRow, toCol, newCell)
+      
+      // Режим фуков: если фишка "сгорает" при взятии
+      if (this.fukiMode && Math.random() < 0.1) { // 10% шанс "сгорания"
+        this.setCell(toRow, toCol, null)
+        return { success: true, mustContinueCapture: false, gameOver: false, becameKing: false, fukiBurned: true }
+      }
 
       // Проверка на превращение в дамку
       let becameKing = false
