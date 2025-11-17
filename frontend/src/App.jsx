@@ -41,7 +41,9 @@ function App() {
     setLoading(true)
     
     try {
-      const response = await fetch(`/api/game/join/${id}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || ''
+      const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
+      const response = await fetch(`${apiPath}/game/join/${id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -209,7 +211,9 @@ function App() {
     setLoading(true)
     
     try {
-      const response = await fetch('/api/game/create', {
+      const apiUrl = import.meta.env.VITE_API_URL || ''
+      const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
+      const response = await fetch(`${apiPath}/game/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -247,7 +251,9 @@ function App() {
     setLoading(true)
     
     try {
-      const response = await fetch(`/api/game/join/${id}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || ''
+      const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
+      const response = await fetch(`${apiPath}/game/join/${id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -20,11 +20,16 @@ export const useGameSocket = (gameId) => {
     // Определяем URL для WebSocket
     const getWsUrl = () => {
       if (import.meta.env.PROD) {
-        // В production используем переменную окружения или определяем автоматически
-        const apiUrl = import.meta.env.VITE_API_URL || window.location.origin
-        // Заменяем http/https на ws/wss
-        const wsUrl = apiUrl.replace(/^http/, 'ws')
-        return wsUrl
+        // В production используем переменную окружения
+        if (import.meta.env.VITE_WS_URL) {
+          return import.meta.env.VITE_WS_URL
+        }
+        // Если VITE_WS_URL не указан, формируем из VITE_API_URL
+        if (import.meta.env.VITE_API_URL) {
+          return import.meta.env.VITE_API_URL.replace(/^http/, 'ws')
+        }
+        // Fallback на текущий origin
+        return window.location.origin.replace(/^http/, 'ws')
       }
       return 'http://localhost:3000'
     }
