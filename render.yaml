@@ -1,0 +1,21 @@
+# Конфигурация для Render.com
+# Этот файл можно использовать для автоматической настройки сервиса
+
+services:
+  - type: web
+    name: checkers-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: BOT_TOKEN
+        sync: false  # Укажите вручную в Dashboard
+      - key: MINI_APP_URL
+        sync: false  # Укажите после деплоя фронтенда
+
