@@ -88,10 +88,12 @@ function App() {
     if (!socket) return
 
     socket.on('gameState', (state) => {
+      console.log('📥 Получено состояние игры:', state)
       const prevState = gameState
       setGameState(state)
       setSelectedCell(null)
       setPossibleMoves([])
+      setLoading(false) // Останавливаем загрузку при получении состояния
       
       // Уведомления о смене хода
       if (prevState && prevState.status === 'active' && state.status === 'active') {
@@ -131,11 +133,27 @@ function App() {
     })
 
     socket.on('playerReady', (ready) => {
+      console.log('📥 Получено состояние готовности:', ready)
       setPlayerReady(ready)
     })
 
     socket.on('gameStarted', () => {
+      console.log('🎮 Игра началась!')
+      setLoading(false) // Останавливаем загрузку
       showSuccess('🎮 Игра началась! Оба игрока готовы!', 4000)
+    })
+    
+    socket.on('connect', () => {
+      console.log('✅ Socket подключен')
+    })
+    
+    socket.on('disconnect', () => {
+      console.log('❌ Socket отключен')
+    })
+    
+    socket.on('connect_error', (error) => {
+      console.error('❌ Ошибка подключения socket:', error)
+      setLoading(false)
     })
 
     socket.on('moveResult', (result) => {
@@ -177,6 +195,9 @@ function App() {
       socket.off('playerReady')
       socket.off('gameStarted')
       socket.off('error')
+      socket.off('connect')
+      socket.off('disconnect')
+      socket.off('connect_error')
     }
   }, [socket, gameState, showSuccess, showError, showInfo])
 
