@@ -97,9 +97,14 @@ function App() {
       // Проверяем изменение режима фуков через gameState
       // Если режим изменился, но мы уже получили fukiModeChanged, не показываем уведомление
       const fukiModeChanged = prevState && prevState.fukiMode !== state.fukiMode
-      if (fukiModeChanged && prevFukiModeRef.current === state.fukiMode) {
-        // Режим изменился, но уведомление уже показано через fukiModeChanged
-        console.log('🔥 Режим фуков изменен через gameState, уведомление уже показано')
+      if (fukiModeChanged) {
+        // Если уведомление уже показано через fukiModeChanged, не показываем снова
+        if (prevFukiModeRef.current === state.fukiMode) {
+          console.log('🔥 Режим фуков изменен через gameState, уведомление уже показано')
+        } else {
+          // Обновляем ref для следующей проверки
+          prevFukiModeRef.current = state.fukiMode
+        }
       }
       
       setGameState(state)
