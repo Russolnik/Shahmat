@@ -41,27 +41,30 @@ export class CheckersGame {
       return // Не выбрасываем ошибку, просто игнорируем
     }
     
+    // Сохраняем игрока с нормализованным ID
+    const normalizedPlayer = { ...player, id: playerId }
+    
     // Если оба слота пустые - это первый игрок (создатель)
     if (!this.players.white && !this.players.black) {
       // Рандомно определяем цвет создателя
       const isCreatorWhite = Math.random() < 0.5
       if (isCreatorWhite) {
-        this.players.white = { ...player, id: playerId } // Сохраняем нормализованный ID
+        this.players.white = normalizedPlayer
         console.log(`✅ Создатель ${player.username} (ID: ${playerId}) присоединился как БЕЛЫЕ`)
       } else {
-        this.players.black = { ...player, id: playerId } // Сохраняем нормализованный ID
+        this.players.black = normalizedPlayer
         console.log(`✅ Создатель ${player.username} (ID: ${playerId}) присоединился как ЧЕРНЫЕ`)
       }
     }
     // Если один слот занят - это второй игрок, он ВСЕГДА получает противоположный цвет
-    else if (!this.players.white && this.players.black) {
-      // Создатель черный, второй игрок становится белым
-      this.players.white = { ...player, id: playerId } // Сохраняем нормализованный ID
-      console.log(`✅ Второй игрок ${player.username} (ID: ${playerId}) присоединился как БЕЛЫЕ (создатель был черным)`)
-    } else if (!this.players.black && this.players.white) {
+    else if (this.players.white && !this.players.black) {
       // Создатель белый, второй игрок становится черным
-      this.players.black = { ...player, id: playerId } // Сохраняем нормализованный ID
+      this.players.black = normalizedPlayer
       console.log(`✅ Второй игрок ${player.username} (ID: ${playerId}) присоединился как ЧЕРНЫЕ (создатель был белым)`)
+    } else if (!this.players.white && this.players.black) {
+      // Создатель черный, второй игрок становится белым
+      this.players.white = normalizedPlayer
+      console.log(`✅ Второй игрок ${player.username} (ID: ${playerId}) присоединился как БЕЛЫЕ (создатель был черным)`)
     } else {
       throw new Error('Игра уже заполнена')
     }
@@ -70,31 +73,45 @@ export class CheckersGame {
     if (this.players.white && this.players.black) {
       this.status = 'waiting' // Ожидаем готовности обоих игроков
       this.lastActivityAt = Date.now() // Обновляем время активности
-      console.log(`🎮 Оба игрока присоединились:`)
-      console.log(`   БЕЛЫЕ: ${this.players.white.username} (ID: ${this.players.white.id}, тип: ${typeof this.players.white.id})`)
-      console.log(`   ЧЕРНЫЕ: ${this.players.black.username} (ID: ${this.players.black.id}, тип: ${typeof this.players.black.id})`)
-      console.log(`🎯 Белые ходят первыми (currentPlayer: ${this.currentPlayer})`)
       
-      // Проверка на одинаковые ID
+      // Финальная проверка: убеждаемся, что цвета разные
       const whiteIdFinal = Number(this.players.white.id) || this.players.white.id
       const blackIdFinal = Number(this.players.black.id) || this.players.black.id
+      
+      console.log(`🎮 Оба игрока присоединились:`)
+      console.log(`   БЕЛЫЕ: ${this.players.white.username} (ID: ${whiteIdFinal}, тип: ${typeof whiteIdFinal})`)
+      console.log(`   ЧЕРНЫЕ: ${this.players.black.username} (ID: ${blackIdFinal}, тип: ${typeof blackIdFinal})`)
+      console.log(`🎯 Белые ходят первыми (currentPlayer: ${this.currentPlayer})`)
+      
+      // КРИТИЧЕСКАЯ ПРОВЕРКА: если ID одинаковые, это ошибка
       if (whiteIdFinal === blackIdFinal) {
-        console.error(`❌ ОШИБКА: Оба игрока имеют одинаковый ID! ${whiteIdFinal}`)
-        // Исправляем: если ID одинаковые, принудительно меняем цвет второго игрока
-        if (this.players.white.id === this.players.black.id) {
-          console.log(`🔧 ИСПРАВЛЕНИЕ: Принудительно меняем цвет второго игрока`)
-          // Если создатель белый, второй игрок должен быть черным
-          if (this.creator && Number(this.creator.id) === whiteIdFinal) {
-            // Создатель белый, второй игрок должен быть черным
-            this.players.black = { ...player, id: playerId }
-            console.log(`🔧 Второй игрок принудительно установлен как ЧЕРНЫЕ`)
-          } else {
-            // Создатель черный, второй игрок должен быть белым
-            this.players.white = { ...player, id: playerId }
-            console.log(`🔧 Второй игрок принудительно установлен как БЕЛЫЕ`)
-          }
+        console.error(`❌ КРИТИЧЕСКАЯ ОШИБКА: Оба игрока имеют одинаковый ID! ${whiteIdFinal}`)
+        console.error(`   Белые ID: ${whiteIdFinal}, Черные ID: ${blackIdFinal}`)
+        console.error(`   Белые username: ${this.players.white.username}, Черные username: ${this.players.black.username}`)
+        // Принудительно исправляем: второй игрок получает противоположный цвет создателя
+        const creatorId = Number(this.creator?.id) || this.creator?.id
+        if (creatorId === whiteIdFinal) {
+          // Создатель белый, второй игрок должен быть черным
+          this.players.black = normalizedPlayer
+          console.log(`🔧 ИСПРАВЛЕНИЕ: Второй игрок принудительно установлен как ЧЕРНЫЕ`)
+        } else {
+          // Создатель черный, второй игрок должен быть белым
+          this.players.white = normalizedPlayer
+          console.log(`🔧 ИСПРАВЛЕНИЕ: Второй игрок принудительно установлен как БЕЛЫЕ`)
         }
       }
+      
+      // Финальная проверка: убеждаемся, что один белый, другой черный
+      if (!this.players.white || !this.players.black) {
+        console.error(`❌ КРИТИЧЕСКАЯ ОШИБКА: Не хватает игрока! Белые: ${!!this.players.white}, Черные: ${!!this.players.black}`)
+      }
+    }
+    
+    // Возвращаем информацию о присоединении для уведомлений
+    return {
+      player: normalizedPlayer,
+      color: this.players.white?.id === playerId ? 'white' : 'black',
+      bothJoined: !!(this.players.white && this.players.black)
     }
   }
   

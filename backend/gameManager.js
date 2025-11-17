@@ -60,12 +60,14 @@ export class GameManager {
     // Если игрок уже в игре - просто возвращаемся (не выбрасываем ошибку)
     if ((whiteId && whiteId === playerId) || (blackId && blackId === playerId)) {
       console.log(`⚠️ Игрок ${player.username} (ID: ${playerId}) уже в игре ${gameId}, пропускаем`)
-      return
+      return { alreadyJoined: true }
     }
     
-    game.addPlayer(player)
-    const color = game.players.white?.id === playerId || Number(game.players.white?.id) === playerId ? 'белые' : 'черные'
+    const result = game.addPlayer(player)
+    const color = result?.color === 'white' ? 'белые' : 'черные'
     console.log(`✅ Игрок ${player.username} (ID: ${playerId}) присоединился к игре ${gameId} как ${color}`)
+    
+    return result
   }
 
   getGame(gameId) {

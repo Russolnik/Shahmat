@@ -91,9 +91,33 @@ app.post('/api/game/join/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Игра не найдена' })
     }
     
-    gameManager.joinGame(gameId, user)
+    const joinResult = gameManager.joinGame(gameId, user)
+    if (joinResult?.alreadyJoined) {
+      console.log(`⚠️ API: Пользователь ${user.username} уже в игре ${gameId}`)
+      return res.json({ success: true, alreadyJoined: true })
+    }
+    
     console.log(`✅ API: Пользователь ${user.username} успешно присоединился к игре ${gameId}`)
-    res.json({ success: true })
+    
+    // Если оба игрока присоединились, отправляем уведомление через WebSocket
+    if (joinResult?.bothJoined && game.players.white && game.players.black) {
+      // Отправляем обновленное состояние обоим игрокам
+      const whiteState = game.getState(game.players.white.id)
+      const blackState = game.getState(game.players.black.id)
+      
+      // Используем io для отправки всем в комнате игры
+      io.to(`game:${gameId}`).emit('gameState', whiteState)
+      io.to(`game:${gameId}`).emit('gameState', blackState)
+      io.to(`game:${gameId}`).emit('playerJoined', {
+        player: joinResult.player,
+        color: joinResult.color,
+        bothJoined: true
+      })
+      
+      console.log(`📢 Уведомление о присоединении отправлено всем игрокам в игре ${gameId}`)
+    }
+    
+    res.json({ success: true, color: joinResult?.color })
   } catch (error) {
     console.error(`❌ API: Ошибка присоединения к игре: ${error.message}`)
     res.status(400).json({ success: false, error: error.message })

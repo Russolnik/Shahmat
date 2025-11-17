@@ -176,6 +176,14 @@ function App() {
       console.log('📥 Получено состояние готовности:', ready)
       setPlayerReady(ready)
     })
+    
+    socket.on('playerJoined', ({ player, color, bothJoined }) => {
+      console.log('📥 Игрок присоединился:', player, color)
+      if (bothJoined && player) {
+        const colorText = color === 'white' ? '⚪ белые' : '⚫ черные'
+        showInfo(`👤 @${player.username} присоединился как ${colorText}!`, 4000)
+      }
+    })
 
     socket.on('gameStarted', () => {
       console.log('🎮 Игра началась!')
@@ -254,6 +262,7 @@ function App() {
       socket.off('drawRejected')
       socket.off('drawAccepted')
       socket.off('playerReady')
+      socket.off('playerJoined')
       socket.off('gameStarted')
       socket.off('fukiModeChanged')
       socket.off('error')
