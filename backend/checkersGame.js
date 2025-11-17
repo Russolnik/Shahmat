@@ -22,7 +22,9 @@ export class CheckersGame {
       throw new Error('Нельзя играть с самим собой')
     }
     
-    // Присваиваем игрока в свободный слот (белый или черный уже определен при создании)
+    // Присваиваем игрока в свободный слот
+    // Если создатель уже белый, второй игрок становится черным
+    // Если создатель уже черный, второй игрок становится белым
     if (!this.players.white) {
       this.players.white = player
     } else if (!this.players.black) {
@@ -31,9 +33,10 @@ export class CheckersGame {
       throw new Error('Игра уже заполнена')
     }
     
-    // Когда оба игрока присоединились, меняем статус на active
+    // Когда оба игрока присоединились, меняем статус на waiting (ожидаем готовности)
     if (this.players.white && this.players.black) {
       this.status = 'waiting' // Ожидаем готовности обоих игроков
+      console.log(`Оба игрока присоединились: белые=${this.players.white.username}, черные=${this.players.black.username}`)
     }
   }
 
