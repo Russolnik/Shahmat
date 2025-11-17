@@ -48,21 +48,31 @@ const GameInfo = ({ gameState, user, gameId }) => {
       {gameState.status === 'waiting' ? (
         <>
           <div className="info-row">
-            <span className="info-label">⏳ Ожидание соперника...</span>
+            <span className="info-label">⏳ Ожидание готовности...</span>
           </div>
-          {gameState.opponent && (
+          {gameState.opponent ? (
             <div className="info-row">
               <span className="info-label">👤 Соперник:</span>
-              <span className="info-value">@{gameState.opponent.username}</span>
+              <span className="info-value">@{gameState.opponent.username || gameState.opponent.first_name || 'Игрок'}</span>
+            </div>
+          ) : (
+            <div className="info-row">
+              <span className="info-label">⏳ Ожидание соперника...</span>
+            </div>
+          )}
+          {gameState.myPlayer && (
+            <div className="info-row">
+              <span className="info-label">🎯 Ваш цвет:</span>
+              <span className="info-value">{myColor}</span>
             </div>
           )}
         </>
       ) : (
         <>
           <div className="info-row">
-            <span className="info-label">🎮 Игра:</span>
+            <span className="info-label">🎮 Соперник:</span>
             <span className="info-value">
-              {gameState.opponent ? `@${gameState.opponent.username}` : 'Ожидание соперника...'}
+              {gameState.opponent ? `@${gameState.opponent.username || gameState.opponent.first_name || 'Игрок'}` : 'Ожидание соперника...'}
             </span>
           </div>
           {gameState.myPlayer && (

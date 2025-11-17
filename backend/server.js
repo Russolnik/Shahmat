@@ -232,13 +232,25 @@ io.on('connection', (socket) => {
   })
 
   socket.on('setReady', async (gameId, userId) => {
-    const game = gameManager.getGame(gameId)
-    if (!game) return
+    if (!socket.gameId) {
+      console.log(`⚠️ setReady: socket.gameId не установлен, используем переданный gameId: ${gameId}`)
+    }
+    
+    const normalizedGameId = socket.gameId || String(gameId).toUpperCase().trim()
+    const game = gameManager.getGame(normalizedGameId)
+    if (!game) {
+      console.log(`❌ setReady: Игра ${normalizedGameId} не найдена`)
+      socket.emit('error', { message: 'Игра не найдена' })
+      return
+    }
 
     // Нормализуем ID для сравнения
     const normalizedUserId = Number(userId) || userId
     const whiteId = game.players.white ? (Number(game.players.white.id) || game.players.white.id) : null
     const blackId = game.players.black ? (Number(game.players.black.id) || game.players.black.id) : null
+
+    console.log(`🔍 setReady: Проверка игрока ${normalizedUserId}`)
+    console.log(`   Белые ID: ${whiteId}, Черные ID: ${blackId}`)
 
     // Определяем цвет игрока
     let playerColor = null
@@ -247,19 +259,26 @@ io.on('connection', (socket) => {
     } else if (blackId === normalizedUserId || blackId === userId) {
       playerColor = 'black'
     } else {
+      console.log(`❌ setReady: Игрок ${normalizedUserId} не найден в игре`)
+      socket.emit('error', { message: 'Вы не участник этой игры' })
       return
     }
+
+    console.log(`✅ setReady: Игрок ${normalizedUserId} определен как ${playerColor}`)
 
     // Обновляем готовность через бота
     try {
       const { setPlayerReady } = await import('./bot.js')
-      const ready = setPlayerReady?.(gameId, playerColor) || { white: false, black: false }
+      const ready = setPlayerReady?.(normalizedGameId, playerColor) || { white: false, black: false }
+      
+      console.log(`📊 setReady: Состояние готовности: белые=${ready.white}, черные=${ready.black}`)
       
       // Отправляем обновление готовности всем
-      io.to(`game:${gameId}`).emit('playerReady', ready)
+      io.to(`game:${normalizedGameId}`).emit('playerReady', ready)
 
       // Проверяем, можно ли начать игру
       if (ready.white && ready.black && game.status === 'waiting') {
+        console.log(`🎮 setReady: Оба игрока готовы! Начинаем игру ${normalizedGameId}`)
         game.status = 'active'
         game.lastActivityAt = Date.now() // Обновляем время активности при старте игры
         
@@ -267,18 +286,23 @@ io.on('connection', (socket) => {
         if (game.players.white) {
           const whiteState = game.getState(game.players.white.id)
           console.log(`📊 Отправка состояния белым: доска ${whiteState.board ? 'есть' : 'отсутствует'}, размер: ${whiteState.board?.length || 0}x${whiteState.board?.[0]?.length || 0}`)
-          io.to(`game:${gameId}`).emit('gameState', whiteState)
+          console.log(`   Белые: myPlayer=${whiteState.myPlayer}, opponent=${whiteState.opponent?.username || 'нет'}`)
+          io.to(`game:${normalizedGameId}`).emit('gameState', whiteState)
         }
         if (game.players.black) {
           const blackState = game.getState(game.players.black.id)
           console.log(`📊 Отправка состояния черным: доска ${blackState.board ? 'есть' : 'отсутствует'}, размер: ${blackState.board?.length || 0}x${blackState.board?.[0]?.length || 0}`)
-          io.to(`game:${gameId}`).emit('gameState', blackState)
+          console.log(`   Черные: myPlayer=${blackState.myPlayer}, opponent=${blackState.opponent?.username || 'нет'}`)
+          io.to(`game:${normalizedGameId}`).emit('gameState', blackState)
         }
         
-        io.to(`game:${gameId}`).emit('gameStarted')
+        io.to(`game:${normalizedGameId}`).emit('gameStarted')
+      } else {
+        console.log(`⏳ setReady: Ожидание второго игрока. Белые готовы: ${ready.white}, Черные готовы: ${ready.black}`)
       }
     } catch (error) {
-      console.error('Ошибка установки готовности:', error)
+      console.error('❌ Ошибка установки готовности:', error)
+      socket.emit('error', { message: 'Ошибка установки готовности' })
     }
   })
 

@@ -139,6 +139,15 @@ export class CheckersGame {
         myPlayer = 'black'
         opponent = this.players.white
       }
+      
+      // Логирование для отладки
+      if (this.players.white && this.players.black) {
+        console.log(`📊 getState для ${userId}:`)
+        console.log(`   Белые: ${this.players.white.username} (ID: ${whiteId})`)
+        console.log(`   Черные: ${this.players.black.username} (ID: ${blackId})`)
+        console.log(`   Текущий пользователь: ${userIdNum}`)
+        console.log(`   myPlayer: ${myPlayer}, opponent: ${opponent?.username || 'нет'}`)
+      }
     }
 
     // Получаем доску из логики
@@ -163,7 +172,11 @@ export class CheckersGame {
       status: this.status,
       winner: this.winner,
       myPlayer,
-      opponent,
+      opponent: opponent ? {
+        id: opponent.id,
+        username: opponent.username || opponent.first_name || `user_${opponent.id}`,
+        first_name: opponent.first_name || opponent.username || `user_${opponent.id}`
+      } : null,
       fukiMode: this.fukiMode,
       isCreator: userId ? this.isCreator(userId) : false
     }

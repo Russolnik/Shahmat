@@ -421,7 +421,11 @@ function App() {
   }
 
   const handleReady = () => {
-    if (!gameId || !user || !socket) return
+    if (!gameId || !user || !socket) {
+      console.log('⚠️ handleReady: нет gameId, user или socket')
+      return
+    }
+    console.log(`🔘 handleReady: отправка готовности для игры ${gameId}, пользователь ${user.id}`)
     socket.emit('setReady', gameId, user.id)
     showInfo('Вы готовы! Ожидаем соперника...', 2000)
   }
