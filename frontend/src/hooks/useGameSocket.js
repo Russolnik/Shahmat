@@ -44,7 +44,10 @@ export const useGameSocket = (gameId) => {
       setConnected(true)
       // Получаем userId из localStorage или из Telegram
       const userId = localStorage.getItem('userId') || '12345'
-      newSocket.emit('joinGame', gameId, userId)
+      // Нормализуем gameId перед отправкой
+      const normalizedGameId = String(gameId).toUpperCase().trim()
+      console.log(`🔌 Socket подключен, присоединяемся к игре ${normalizedGameId}`)
+      newSocket.emit('joinGame', normalizedGameId, userId)
       newSocket.userId = userId
     })
 

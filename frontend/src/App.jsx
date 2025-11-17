@@ -43,13 +43,15 @@ function App() {
       return
     }
     
-    console.log(`🔗 joinGameFromBot: присоединение к игре ${id}`)
+    // Нормализуем gameId
+    const normalizedId = String(id).toUpperCase().trim()
+    console.log(`🔗 joinGameFromBot: присоединение к игре ${normalizedId}`)
     setLoading(true)
     
     try {
       const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
       const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
-      const url = `${apiPath}/game/join/${id.toUpperCase()}`
+      const url = `${apiPath}/game/join/${normalizedId}`
       console.log(`📡 Запрос к API: ${url}`)
       
       const response = await fetch(url, {
@@ -65,7 +67,7 @@ function App() {
       console.log(`📥 Данные ответа:`, data)
       
       if (data.success) {
-        setGameId(id.toUpperCase())
+        setGameId(normalizedId)
         setError(null)
         showInfo('Вы присоединились к игре!', 3000)
       } else {
@@ -300,13 +302,16 @@ function App() {
       showError(errorMsg, 3000)
       return
     }
+    
+    // Нормализуем gameId
+    const normalizedId = String(id).toUpperCase().trim()
     setError(null)
     setLoading(true)
     
     try {
       const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
       const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
-      const response = await fetch(`${apiPath}/game/join/${id}`, {
+      const response = await fetch(`${apiPath}/game/join/${normalizedId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -315,7 +320,7 @@ function App() {
       })
       const data = await response.json()
       if (data.success) {
-        setGameId(id)
+        setGameId(normalizedId)
         setError(null)
         showSuccess('Вы присоединились к игре!', 3000)
       } else {
@@ -458,13 +463,15 @@ function App() {
               <LoadingSpinner message="Подключение к игре..." />
             </div>
           )}
-          <GameInfo gameState={gameState} user={user} />
+          <GameInfo gameState={gameState} user={user} gameId={gameId} />
           {gameState?.status === 'waiting' && (
             <ReadyButton
               gameState={gameState}
               playerReady={playerReady}
               onReady={handleReady}
+              onToggleFuki={handleToggleFuki}
               disabled={!connected || loading}
+              socket={socket}
             />
           )}
           {(gameState?.status === 'active' || gameState?.status === 'finished') && (

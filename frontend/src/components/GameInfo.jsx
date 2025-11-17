@@ -1,6 +1,6 @@
 import './GameInfo.css'
 
-const GameInfo = ({ gameState, user }) => {
+const GameInfo = ({ gameState, user, gameId }) => {
   if (!gameState) {
     return (
       <div className="game-info">
@@ -30,6 +30,12 @@ const GameInfo = ({ gameState, user }) => {
         <div className="info-row">
           <span className="info-value result">{resultText}</span>
         </div>
+        {gameId && (
+          <div className="info-row game-id-row">
+            <span className="info-label">🆔 ID комнаты:</span>
+            <span className="info-value game-id-display">{gameId}</span>
+          </div>
+        )}
       </div>
     )
   }
@@ -57,6 +63,12 @@ const GameInfo = ({ gameState, user }) => {
           {currentPlayerName} {isMyTurn && '(вы)'}
         </span>
       </div>
+      {gameId && (
+        <div className="info-row game-id-row">
+          <span className="info-label">🆔 ID комнаты:</span>
+          <span className="info-value game-id-display">{gameId}</span>
+        </div>
+      )}
       {gameState.status === 'waiting' && (
         <div className="info-row">
           <span className="info-label">⏳ Ожидание соперника...</span>

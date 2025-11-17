@@ -42,6 +42,22 @@
   animation: pulse 2s infinite;
 }
 
+.game-id-row {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.game-id-display {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background: var(--glass-bg);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--glass-border);
+}
+
 .game-info.finished {
   background: rgba(76, 175, 80, 0.2);
   border: 2px solid rgba(76, 175, 80, 0.5);

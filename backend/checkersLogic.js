@@ -1,7 +1,7 @@
 export class CheckersLogic {
   constructor() {
-    this.board = this.initializeBoard()
     this.fukiMode = false // Режим фуков (фишки "сгорают" при определенных условиях)
+    this.board = this.initializeBoard()
   }
   
   setFukiMode(enabled) {

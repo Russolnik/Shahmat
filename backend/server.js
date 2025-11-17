@@ -137,22 +137,42 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id)
 
   socket.on('joinGame', async (gameId, userId) => {
-    const game = gameManager.getGame(gameId)
+    if (!gameId) {
+      console.log(`⚠️ Socket: gameId не указан`)
+      return
+    }
+    
+    // Нормализуем gameId
+    const normalizedGameId = String(gameId).toUpperCase().trim()
+    console.log(`🔍 Socket: Поиск игры ${normalizedGameId} для пользователя ${userId}`)
+    
+    const game = gameManager.getGame(normalizedGameId)
     if (game) {
-      socket.join(`game:${gameId}`)
-      socket.gameId = gameId
+      // Обновляем время последней активности при подключении
+      game.lastActivityAt = Date.now()
+      
+      socket.join(`game:${normalizedGameId}`)
+      socket.gameId = normalizedGameId
       socket.userId = userId
+      
+      // Отправляем состояние игры конкретному игроку
       const gameState = game.getState(userId)
-      io.to(`game:${gameId}`).emit('gameState', gameState)
+      socket.emit('gameState', gameState)
+      
+      console.log(`✅ Socket: Пользователь ${userId} подключился к игре ${normalizedGameId}`)
+      console.log(`📊 Состояние доски: ${gameState.board ? 'есть' : 'отсутствует'}, размер: ${gameState.board?.length || 0}x${gameState.board?.[0]?.length || 0}`)
       
       // Отправляем информацию о готовности
       try {
         const { getPlayerReady } = await import('./bot.js')
-        const ready = getPlayerReady?.(gameId) || { white: false, black: false }
+        const ready = getPlayerReady?.(normalizedGameId) || { white: false, black: false }
         socket.emit('playerReady', ready)
       } catch (error) {
         socket.emit('playerReady', { white: false, black: false })
       }
+    } else {
+      console.log(`❌ Socket: Игра ${normalizedGameId} не найдена. Доступные игры: ${Array.from(gameManager.games.keys()).join(', ')}`)
+      socket.emit('error', { message: `Игра ${normalizedGameId} не найдена` })
     }
   })
 
@@ -186,8 +206,20 @@ io.on('connection', (socket) => {
       // Проверяем, можно ли начать игру
       if (ready.white && ready.black && game.status === 'waiting') {
         game.status = 'active'
-        const gameState = game.getState(userId)
-        io.to(`game:${gameId}`).emit('gameState', gameState)
+        game.lastActivityAt = Date.now() // Обновляем время активности при старте игры
+        
+        // Отправляем состояние игры обоим игрокам
+        if (game.players.white) {
+          const whiteState = game.getState(game.players.white.id)
+          console.log(`📊 Отправка состояния белым: доска ${whiteState.board ? 'есть' : 'отсутствует'}, размер: ${whiteState.board?.length || 0}x${whiteState.board?.[0]?.length || 0}`)
+          io.to(`game:${gameId}`).emit('gameState', whiteState)
+        }
+        if (game.players.black) {
+          const blackState = game.getState(game.players.black.id)
+          console.log(`📊 Отправка состояния черным: доска ${blackState.board ? 'есть' : 'отсутствует'}, размер: ${blackState.board?.length || 0}x${blackState.board?.[0]?.length || 0}`)
+          io.to(`game:${gameId}`).emit('gameState', blackState)
+        }
+        
         io.to(`game:${gameId}`).emit('gameStarted')
       }
     } catch (error) {
@@ -209,9 +241,29 @@ io.on('connection', (socket) => {
     const game = gameManager.getGame(socket.gameId)
     if (!game) return
     
+    // Проверяем, что это создатель игры и игра еще не началась
+    if (!game.isCreator(socket.userId)) {
+      socket.emit('error', { message: 'Только создатель игры может изменить режим фуков' })
+      return
+    }
+    
+    if (game.status !== 'waiting') {
+      socket.emit('error', { message: 'Режим фуков можно изменить только до начала игры' })
+      return
+    }
+    
     const newMode = game.toggleFukiMode()
-    const gameState = game.getState(socket.userId)
-    io.to(`game:${socket.gameId}`).emit('gameState', gameState)
+    // Отправляем обновленное состояние всем игрокам
+    const whiteState = game.getState(game.players.white?.id)
+    const blackState = game.getState(game.players.black?.id)
+    
+    if (whiteState) {
+      io.to(`game:${socket.gameId}`).emit('gameState', whiteState)
+    }
+    if (blackState && game.players.white?.id !== game.players.black?.id) {
+      io.to(`game:${socket.gameId}`).emit('gameState', blackState)
+    }
+    
     io.to(`game:${socket.gameId}`).emit('fukiModeChanged', newMode)
   })
 
@@ -223,11 +275,20 @@ io.on('connection', (socket) => {
     try {
       const result = game.makeMove(from, to)
       if (result.success) {
-        const gameState = game.getState(socket.userId)
-        io.to(`game:${socket.gameId}`).emit('gameState', gameState)
+        // Отправляем состояние игры обоим игрокам
+        if (game.players.white) {
+          const whiteState = game.getState(game.players.white.id)
+          io.to(`game:${socket.gameId}`).emit('gameState', whiteState)
+        }
+        if (game.players.black) {
+          const blackState = game.getState(game.players.black.id)
+          io.to(`game:${socket.gameId}`).emit('gameState', blackState)
+        }
+        
+        const currentPlayerState = game.getState(socket.userId)
         io.to(`game:${socket.gameId}`).emit('moveResult', {
           success: true,
-          gameState,
+          gameState: currentPlayerState,
           becameKing: result.becameKing || false,
           fukiBurned: result.fukiBurned || false
         })
@@ -298,6 +359,7 @@ io.on('connection', (socket) => {
     if (game) {
       game.status = 'finished'
       game.winner = 'draw'
+      game.lastActivityAt = Date.now() // Обновляем время активности
       const gameState = game.getState(socket.userId)
       io.to(`game:${socket.gameId}`).emit('gameState', gameState)
       io.to(`game:${socket.gameId}`).emit('drawAccepted')

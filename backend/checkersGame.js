@@ -3,6 +3,8 @@ import { CheckersLogic } from './checkersLogic.js'
 export class CheckersGame {
   constructor(gameId, creator) {
     this.gameId = gameId
+    // Сохраняем создателя игры
+    this.creator = creator
     // Создатель пока не имеет цвета - будет определен при присоединении второго игрока
     this.players = {
       white: null,
@@ -15,6 +17,16 @@ export class CheckersGame {
     this.currentPlayer = 'white'
     // Режим с фуками (по умолчанию выключен)
     this.fukiMode = false
+    // Временные метки для очистки неактивных игр
+    this.createdAt = Date.now()
+    this.lastActivityAt = Date.now()
+  }
+  
+  isCreator(userId) {
+    if (!userId || !this.creator) return false
+    const userIdNum = Number(userId) || userId
+    const creatorId = Number(this.creator.id) || this.creator.id
+    return userIdNum === creatorId || userId === creatorId
   }
 
   addPlayer(player) {
@@ -41,13 +53,15 @@ export class CheckersGame {
         console.log(`✅ Создатель ${player.username} (ID: ${playerId}) присоединился как ЧЕРНЫЕ`)
       }
     }
-    // Если один слот занят - это второй игрок, он получает противоположный цвет
-    else if (!this.players.white) {
+    // Если один слот занят - это второй игрок, он ВСЕГДА получает противоположный цвет
+    else if (!this.players.white && this.players.black) {
+      // Создатель черный, второй игрок становится белым
       this.players.white = player
-      console.log(`✅ Второй игрок ${player.username} (ID: ${playerId}) присоединился как БЕЛЫЕ`)
-    } else if (!this.players.black) {
+      console.log(`✅ Второй игрок ${player.username} (ID: ${playerId}) присоединился как БЕЛЫЕ (создатель был черным)`)
+    } else if (!this.players.black && this.players.white) {
+      // Создатель белый, второй игрок становится черным
       this.players.black = player
-      console.log(`✅ Второй игрок ${player.username} (ID: ${playerId}) присоединился как ЧЕРНЫЕ`)
+      console.log(`✅ Второй игрок ${player.username} (ID: ${playerId}) присоединился как ЧЕРНЫЕ (создатель был белым)`)
     } else {
       throw new Error('Игра уже заполнена')
     }
@@ -55,8 +69,18 @@ export class CheckersGame {
     // Когда оба игрока присоединились, меняем статус на waiting (ожидаем готовности)
     if (this.players.white && this.players.black) {
       this.status = 'waiting' // Ожидаем готовности обоих игроков
-      console.log(`🎮 Оба игрока присоединились: белые=${this.players.white.username} (ID: ${this.players.white.id}), черные=${this.players.black.username} (ID: ${this.players.black.id})`)
+      this.lastActivityAt = Date.now() // Обновляем время активности
+      console.log(`🎮 Оба игрока присоединились:`)
+      console.log(`   БЕЛЫЕ: ${this.players.white.username} (ID: ${this.players.white.id}, тип: ${typeof this.players.white.id})`)
+      console.log(`   ЧЕРНЫЕ: ${this.players.black.username} (ID: ${this.players.black.id}, тип: ${typeof this.players.black.id})`)
       console.log(`🎯 Белые ходят первыми (currentPlayer: ${this.currentPlayer})`)
+      
+      // Проверка на одинаковые ID
+      const whiteIdFinal = Number(this.players.white.id) || this.players.white.id
+      const blackIdFinal = Number(this.players.black.id) || this.players.black.id
+      if (whiteIdFinal === blackIdFinal) {
+        console.error(`❌ ОШИБКА: Оба игрока имеют одинаковый ID! ${whiteIdFinal}`)
+      }
     }
   }
   
@@ -94,7 +118,8 @@ export class CheckersGame {
       winner: this.winner,
       myPlayer,
       opponent,
-      fukiMode: this.fukiMode
+      fukiMode: this.fukiMode,
+      isCreator: userId ? this.isCreator(userId) : false
     }
 
     return state
@@ -118,6 +143,9 @@ export class CheckersGame {
     )
 
     if (result.success) {
+      // Обновляем время последней активности
+      this.lastActivityAt = Date.now()
+      
       // Проверка на победу
       if (result.gameOver) {
         this.status = 'finished'
@@ -136,6 +164,22 @@ export class CheckersGame {
   surrender() {
     this.status = 'finished'
     this.winner = this.currentPlayer === 'white' ? 'black' : 'white'
+    this.lastActivityAt = Date.now()
+  }
+  
+  // Проверка, является ли игра неактивной (более 30 минут без активности)
+  isInactive() {
+    const INACTIVE_TIMEOUT = 30 * 60 * 1000 // 30 минут в миллисекундах
+    const timeSinceLastActivity = Date.now() - this.lastActivityAt
+    
+    // Если игра в статусе waiting и прошло 30 минут с создания
+    if (this.status === 'waiting') {
+      const timeSinceCreation = Date.now() - this.createdAt
+      return timeSinceCreation > INACTIVE_TIMEOUT
+    }
+    
+    // Если игра активна или завершена, проверяем время последней активности
+    return timeSinceLastActivity > INACTIVE_TIMEOUT
   }
 }
 
