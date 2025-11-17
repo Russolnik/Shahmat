@@ -142,9 +142,10 @@ io.on('connection', (socket) => {
       return
     }
     
-    // Нормализуем gameId
+    // Нормализуем gameId и userId
     const normalizedGameId = String(gameId).toUpperCase().trim()
-    console.log(`🔍 Socket: Поиск игры ${normalizedGameId} для пользователя ${userId}`)
+    const normalizedUserId = Number(userId) || userId
+    console.log(`🔍 Socket: Поиск игры ${normalizedGameId} для пользователя ${normalizedUserId}`)
     
     const game = gameManager.getGame(normalizedGameId)
     if (game) {
@@ -153,14 +154,16 @@ io.on('connection', (socket) => {
       
       socket.join(`game:${normalizedGameId}`)
       socket.gameId = normalizedGameId
-      socket.userId = userId
+      socket.userId = normalizedUserId // Сохраняем нормализованный userId
       
       // Отправляем состояние игры конкретному игроку
-      const gameState = game.getState(userId)
+      const gameState = game.getState(normalizedUserId)
       socket.emit('gameState', gameState)
       
-      console.log(`✅ Socket: Пользователь ${userId} подключился к игре ${normalizedGameId}`)
+      console.log(`✅ Socket: Пользователь ${normalizedUserId} подключился к игре ${normalizedGameId}`)
       console.log(`📊 Состояние доски: ${gameState.board ? 'есть' : 'отсутствует'}, размер: ${gameState.board?.length || 0}x${gameState.board?.[0]?.length || 0}`)
+      console.log(`👤 Создатель игры: ${game.creator?.id} (тип: ${typeof game.creator?.id}), Текущий пользователь: ${normalizedUserId} (тип: ${typeof normalizedUserId})`)
+      console.log(`🔐 Является создателем: ${game.isCreator(normalizedUserId)}`)
       
       // Отправляем информацию о готовности
       try {
@@ -241,8 +244,18 @@ io.on('connection', (socket) => {
     const game = gameManager.getGame(socket.gameId)
     if (!game) return
     
-    // Проверяем, что это создатель игры и игра еще не началась
-    if (!game.isCreator(socket.userId)) {
+    // Нормализуем userId для проверки
+    const normalizedUserId = Number(socket.userId) || socket.userId
+    const creatorId = Number(game.creator?.id) || game.creator?.id
+    
+    console.log(`🔐 Проверка прав на переключение режима фуков:`)
+    console.log(`   Создатель игры: ${creatorId} (тип: ${typeof creatorId})`)
+    console.log(`   Текущий пользователь: ${normalizedUserId} (тип: ${typeof normalizedUserId})`)
+    console.log(`   Является создателем: ${game.isCreator(normalizedUserId)}`)
+    
+    // Проверяем, что это создатель игры по Telegram ID
+    if (!game.isCreator(normalizedUserId)) {
+      console.log(`❌ Отказ: пользователь ${normalizedUserId} не является создателем игры`)
       socket.emit('error', { message: 'Только создатель игры может изменить режим фуков' })
       return
     }
@@ -253,7 +266,7 @@ io.on('connection', (socket) => {
     }
     
     const newMode = game.toggleFukiMode()
-    console.log(`🔥 Режим фуков переключен на: ${newMode ? 'ВКЛ' : 'ВЫКЛ'}`)
+    console.log(`🔥 Режим фуков переключен на: ${newMode ? 'ВКЛ' : 'ВЫКЛ'} создателем ${normalizedUserId}`)
     
     // Отправляем обновленное состояние всем игрокам в комнате
     if (game.players.white) {

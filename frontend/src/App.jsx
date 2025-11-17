@@ -13,7 +13,11 @@ import { useNotifications } from './hooks/useNotifications'
 import './App.css'
 
 function App() {
-  const [gameId, setGameId] = useState(null)
+  // Восстанавливаем gameId из localStorage при загрузке
+  const [gameId, setGameId] = useState(() => {
+    const savedGameId = localStorage.getItem('currentGameId')
+    return savedGameId || null
+  })
   const [gameState, setGameState] = useState(null)
   const [selectedCell, setSelectedCell] = useState(null)
   const [possibleMoves, setPossibleMoves] = useState([])
@@ -28,13 +32,28 @@ function App() {
   const { theme, toggleTheme } = useTheme()
   const { notifications, showSuccess, showError, showInfo, removeNotification } = useNotifications()
 
-  // Автоматическое присоединение к игре из URL (через бота)
+  // Сохраняем gameId в localStorage при изменении
   useEffect(() => {
-    if (urlParams?.gameId && isAuthenticated && user && !gameId) {
+    if (gameId) {
+      localStorage.setItem('currentGameId', gameId)
+    } else {
+      localStorage.removeItem('currentGameId')
+    }
+  }, [gameId])
+
+  // Автоматическое присоединение к игре из URL (через бота) или восстановление из localStorage
+  useEffect(() => {
+    if (!isAuthenticated || !user) return
+    
+    // Приоритет: URL параметры > сохраненный gameId
+    if (urlParams?.gameId && !gameId) {
       console.log(`🔗 Автоматическое присоединение к игре ${urlParams.gameId} из URL`)
       setGameId(urlParams.gameId)
-      // Автоматически присоединяемся к игре
       joinGameFromBot(urlParams.gameId, user.id)
+    } else if (gameId && !urlParams?.gameId && gameState === null) {
+      // Восстанавливаем игру из localStorage
+      console.log(`🔄 Восстановление игры ${gameId} из localStorage`)
+      joinGameFromBot(gameId, user.id)
     }
   }, [urlParams, isAuthenticated, user, gameId])
 

@@ -45,33 +45,44 @@ const GameInfo = ({ gameState, user, gameId }) => {
 
   return (
     <div className="game-info">
-      <div className="info-row">
-        <span className="info-label">🎮 Игра:</span>
-        <span className="info-value">
-          {gameState.opponent ? `@${gameState.opponent.username}` : 'Ожидание соперника...'}
-        </span>
-      </div>
-      {gameState.myPlayer && (
-        <div className="info-row">
-          <span className="info-label">🎯 Ваш цвет:</span>
-          <span className="info-value">{myColor}</span>
-        </div>
+      {gameState.status === 'waiting' ? (
+        <>
+          <div className="info-row">
+            <span className="info-label">⏳ Ожидание соперника...</span>
+          </div>
+          {gameState.opponent && (
+            <div className="info-row">
+              <span className="info-label">👤 Соперник:</span>
+              <span className="info-value">@{gameState.opponent.username}</span>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="info-row">
+            <span className="info-label">🎮 Игра:</span>
+            <span className="info-value">
+              {gameState.opponent ? `@${gameState.opponent.username}` : 'Ожидание соперника...'}
+            </span>
+          </div>
+          {gameState.myPlayer && (
+            <div className="info-row">
+              <span className="info-label">🎯 Ваш цвет:</span>
+              <span className="info-value">{myColor}</span>
+            </div>
+          )}
+          <div className="info-row">
+            <span className="info-label">👤 Ход:</span>
+            <span className={`info-value ${isMyTurn ? 'my-turn' : ''}`}>
+              {currentPlayerName} {isMyTurn && '(вы)'}
+            </span>
+          </div>
+        </>
       )}
-      <div className="info-row">
-        <span className="info-label">👤 Ход:</span>
-        <span className={`info-value ${isMyTurn ? 'my-turn' : ''}`}>
-          {currentPlayerName} {isMyTurn && '(вы)'}
-        </span>
-      </div>
       {gameId && (
         <div className="info-row game-id-row">
           <span className="info-label">🆔 ID комнаты:</span>
           <span className="info-value game-id-display">{gameId}</span>
-        </div>
-      )}
-      {gameState.status === 'waiting' && (
-        <div className="info-row">
-          <span className="info-label">⏳ Ожидание соперника...</span>
         </div>
       )}
     </div>
