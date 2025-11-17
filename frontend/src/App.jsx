@@ -21,6 +21,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [playerReady, setPlayerReady] = useState({ white: false, black: false })
+  const prevFukiModeRef = useRef(null)
   
   const { user, isAuthenticated, initTelegram, urlParams } = useTelegramAuth()
   const { socket, connected } = useGameSocket(gameId)
@@ -92,6 +93,15 @@ function App() {
     socket.on('gameState', (state) => {
       console.log('📥 Получено состояние игры:', state)
       const prevState = gameState
+      
+      // Проверяем изменение режима фуков через gameState
+      // Если режим изменился, но мы уже получили fukiModeChanged, не показываем уведомление
+      const fukiModeChanged = prevState && prevState.fukiMode !== state.fukiMode
+      if (fukiModeChanged && prevFukiModeRef.current === state.fukiMode) {
+        // Режим изменился, но уведомление уже показано через fukiModeChanged
+        console.log('🔥 Режим фуков изменен через gameState, уведомление уже показано')
+      }
+      
       setGameState(state)
       setSelectedCell(null)
       setPossibleMoves([])
@@ -147,11 +157,14 @@ function App() {
     
     socket.on('fukiModeChanged', (enabled) => {
       console.log(`🔥 Режим фуков: ${enabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`)
+      // Показываем уведомление только один раз при явном изменении
       if (enabled) {
         showInfo('🔥 Режим фуков включен!', 3000)
       } else {
         showInfo('♟️ Режим фуков выключен', 3000)
       }
+      // Обновляем ref, чтобы не показывать уведомление при следующем gameState
+      prevFukiModeRef.current = enabled
     })
     
     socket.on('connect', () => {
@@ -214,6 +227,7 @@ function App() {
       socket.off('drawAccepted')
       socket.off('playerReady')
       socket.off('gameStarted')
+      socket.off('fukiModeChanged')
       socket.off('error')
       socket.off('connect')
       socket.off('disconnect')

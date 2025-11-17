@@ -26,8 +26,8 @@ const ReadyButton = ({ gameState, playerReady, onReady, onToggleFuki, disabled, 
             <button
               onClick={onToggleFuki}
               className={`fuki-toggle ${gameState.fukiMode ? 'active' : ''}`}
-              disabled={disabled || isReady}
-              title={gameState.fukiMode ? 'Режим фуков включен' : 'Режим фуков выключен'}
+              disabled={disabled}
+              title={gameState.fukiMode ? 'Нажмите, чтобы выключить режим фуков' : 'Нажмите, чтобы включить режим фуков'}
             >
               {gameState.fukiMode ? 'ВКЛ' : 'ВЫКЛ'}
             </button>

@@ -253,17 +253,19 @@ io.on('connection', (socket) => {
     }
     
     const newMode = game.toggleFukiMode()
-    // Отправляем обновленное состояние всем игрокам
-    const whiteState = game.getState(game.players.white?.id)
-    const blackState = game.getState(game.players.black?.id)
+    console.log(`🔥 Режим фуков переключен на: ${newMode ? 'ВКЛ' : 'ВЫКЛ'}`)
     
-    if (whiteState) {
+    // Отправляем обновленное состояние всем игрокам в комнате
+    if (game.players.white) {
+      const whiteState = game.getState(game.players.white.id)
       io.to(`game:${socket.gameId}`).emit('gameState', whiteState)
     }
-    if (blackState && game.players.white?.id !== game.players.black?.id) {
+    if (game.players.black) {
+      const blackState = game.getState(game.players.black.id)
       io.to(`game:${socket.gameId}`).emit('gameState', blackState)
     }
     
+    // Отправляем уведомление о изменении режима только один раз
     io.to(`game:${socket.gameId}`).emit('fukiModeChanged', newMode)
   })
 
