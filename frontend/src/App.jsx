@@ -46,16 +46,20 @@ function App() {
     if (!isAuthenticated || !user) return
     
     // Приоритет: URL параметры > сохраненный gameId
-    if (urlParams?.gameId && !gameId) {
-      console.log(`🔗 Автоматическое присоединение к игре ${urlParams.gameId} из URL`)
-      setGameId(urlParams.gameId)
-      joinGameFromBot(urlParams.gameId, user.id)
-    } else if (gameId && !urlParams?.gameId && gameState === null) {
-      // Восстанавливаем игру из localStorage
+    if (urlParams?.gameId) {
+      const normalizedId = String(urlParams.gameId).toUpperCase().trim()
+      if (normalizedId !== gameId) {
+        console.log(`🔗 Автоматическое присоединение к игре ${normalizedId} из URL`)
+        setGameId(normalizedId)
+        joinGameFromBot(normalizedId, user.id)
+      }
+    } else if (gameId && gameState === null) {
+      // Восстанавливаем игру из localStorage только если нет gameState
       console.log(`🔄 Восстановление игры ${gameId} из localStorage`)
       joinGameFromBot(gameId, user.id)
     }
-  }, [urlParams, isAuthenticated, user, gameId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlParams?.gameId, isAuthenticated, user?.id])
 
   const joinGameFromBot = async (id, userId) => {
     if (!isAuthenticated || !id) {
