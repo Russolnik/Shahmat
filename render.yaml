@@ -8,6 +8,7 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
+    rootDir: backend
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

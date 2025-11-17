@@ -28,7 +28,7 @@
 - **Branch**: `main` (или ваша основная ветка)
 - **Root Directory**: `backend`
 - **Runtime**: `Node`
-- **Build Command**: `npm install`
+- **Build Command**: `npm install` (⚠️ НЕ `npm run build`!)
 - **Start Command**: `npm start`
 
 **Advanced Settings (опционально):**
