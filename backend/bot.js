@@ -45,7 +45,7 @@ if (bot) {
     const args = msg.text.split(' ')
     if (args.length > 1 && args[1]) {
       const gameId = args[1].trim().toUpperCase()
-      await handleJoin(chatId, userId, username, gameId)
+      await handleJoin(chatId, userId, username, gameId, msg.from.first_name)
       return
     }
 
@@ -325,11 +325,17 @@ async function handleJoin(chatId, userId, username, gameId, firstName) {
       }
     }
 
+    // Нормализуем userId (Telegram возвращает число)
+    const normalizedUserId = Number(userId) || userId
+
     const user = {
-      id: userId,
+      id: normalizedUserId,
       username: userUsername,
       first_name: firstName || userUsername
     }
+    
+    console.log(`🔍 Попытка присоединения: игрок ${user.username} (ID: ${user.id}, тип: ${typeof user.id}) к игре ${gameId}`)
+    console.log(`📊 Текущее состояние игры: белые=${game.players.white?.username} (ID: ${game.players.white?.id}), черные=${game.players.black?.username} (ID: ${game.players.black?.id})`)
 
     // Присоединяемся к игре
     gameManager.joinGame(gameId, user)
@@ -339,10 +345,13 @@ async function handleJoin(chatId, userId, username, gameId, firstName) {
       playerReady.set(gameId, { white: false, black: false })
     }
 
-    // Получаем информацию о создателе игры
-    const creator = game.players.white?.id === game.players.white?.id 
-      ? game.players.white 
-      : game.players.black
+    // Получаем информацию о создателе игры (тот, кто создал игру первым)
+    // Создатель - это тот, кто был в игре до присоединения второго игрока
+    const creator = game.players.white && game.players.white.id !== normalizedUserId
+      ? game.players.white
+      : game.players.black && game.players.black.id !== normalizedUserId
+      ? game.players.black
+      : game.players.white || game.players.black
     const creatorName = creator?.username 
       ? `@${creator.username}` 
       : creator?.first_name || 'Неизвестный игрок'
@@ -373,7 +382,7 @@ async function handleJoin(chatId, userId, username, gameId, firstName) {
     })
 
     // Уведомляем создателя игры
-    if (creator && creator.id !== userId) {
+    if (creator && creator.id !== normalizedUserId) {
       const creatorChatId = await getChatIdByUserId(creator.id)
       if (creatorChatId) {
         const playerName = userUsername ? `@${userUsername}` : user.first_name
@@ -412,11 +421,16 @@ async function handleReady(chatId, userId, gameId) {
       return
     }
 
+    // Нормализуем ID для сравнения
+    const normalizedUserId = Number(userId) || userId
+    const whiteId = game.players.white ? (Number(game.players.white.id) || game.players.white.id) : null
+    const blackId = game.players.black ? (Number(game.players.black.id) || game.players.black.id) : null
+    
     // Определяем, какой игрок готов
     let playerColor = null
-    if (game.players.white?.id === userId) {
+    if (whiteId === normalizedUserId || whiteId === userId) {
       playerColor = 'white'
-    } else if (game.players.black?.id === userId) {
+    } else if (blackId === normalizedUserId || blackId === userId) {
       playerColor = 'black'
     } else {
       await bot.sendMessage(chatId, '❌ Вы не участник этой игры.')

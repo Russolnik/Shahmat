@@ -19,13 +19,20 @@ export class GameManager {
       throw new Error('Игра не найдена')
     }
     
+    // Нормализуем ID для сравнения
+    const playerId = Number(player.id) || player.id
+    const whiteId = game.players.white ? (Number(game.players.white.id) || game.players.white.id) : null
+    const blackId = game.players.black ? (Number(game.players.black.id) || game.players.black.id) : null
+    
     // Проверка на игру с самим собой
-    if (game.players.white?.id === player.id || game.players.black?.id === player.id) {
+    if (whiteId === playerId || blackId === playerId) {
+      console.log(`❌ Попытка присоединения: игрок ${player.username} (ID: ${playerId}) уже в игре (белые: ${whiteId}, черные: ${blackId})`)
       throw new Error('Нельзя играть с самим собой')
     }
     
     game.addPlayer(player)
-    console.log(`Игрок ${player.username} присоединился к игре ${gameId} как ${game.players.white?.id === player.id ? 'белые' : 'черные'}`)
+    const color = game.players.white?.id === playerId || Number(game.players.white?.id) === playerId ? 'белые' : 'черные'
+    console.log(`✅ Игрок ${player.username} (ID: ${playerId}) присоединился к игре ${gameId} как ${color}`)
   }
 
   getGame(gameId) {

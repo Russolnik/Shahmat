@@ -45,11 +45,15 @@ export class CheckersGame {
     let opponent = null
 
     if (userId) {
-      const userIdNum = Number(userId)
-      if (this.players.white?.id === userIdNum || this.players.white?.id === userId) {
+      // Нормализуем ID для сравнения
+      const userIdNum = Number(userId) || userId
+      const whiteId = this.players.white ? (Number(this.players.white.id) || this.players.white.id) : null
+      const blackId = this.players.black ? (Number(this.players.black.id) || this.players.black.id) : null
+      
+      if (whiteId === userIdNum || whiteId === userId) {
         myPlayer = 'white'
         opponent = this.players.black
-      } else if (this.players.black?.id === userIdNum || this.players.black?.id === userId) {
+      } else if (blackId === userIdNum || blackId === userId) {
         myPlayer = 'black'
         opponent = this.players.white
       }

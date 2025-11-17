@@ -149,11 +149,16 @@ io.on('connection', (socket) => {
     const game = gameManager.getGame(gameId)
     if (!game) return
 
+    // Нормализуем ID для сравнения
+    const normalizedUserId = Number(userId) || userId
+    const whiteId = game.players.white ? (Number(game.players.white.id) || game.players.white.id) : null
+    const blackId = game.players.black ? (Number(game.players.black.id) || game.players.black.id) : null
+
     // Определяем цвет игрока
     let playerColor = null
-    if (game.players.white?.id === userId) {
+    if (whiteId === normalizedUserId || whiteId === userId) {
       playerColor = 'white'
-    } else if (game.players.black?.id === userId) {
+    } else if (blackId === normalizedUserId || blackId === userId) {
       playerColor = 'black'
     } else {
       return
