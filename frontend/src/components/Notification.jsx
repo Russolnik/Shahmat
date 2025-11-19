@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import './Notification.css'
 
-const Notification = ({ message, type = 'info', onClose, duration = 3000 }) => {
+const Notification = ({ message, type = 'info', onClose, duration = 1500 }) => {
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(() => {

@@ -233,29 +233,36 @@ function App() {
         }
         
         // Обновляем состояние с новым форматом
+        // ВАЖНО: Сохраняем myPlayerColor из предыдущего состояния, если он был установлен
+        // Это предотвращает скачки поворота доски
+        const preservedMyPlayerColor = prevState?.myPlayerColor || myPlayerColor
+        
         const newState = {
           ...state,
           pieces,
           currentPlayerColor,
-          myPlayerColor,
+          myPlayerColor: preservedMyPlayerColor, // Сохраняем цвет игрока
           capturedWhite,
           capturedBlack,
           validMoves,
           mustCaptureFrom
         }
         
-        // Уведомления о смене хода
+        // Уведомления о смене хода (только если ход перешел от противника к нам)
         if (prevState && prevState.status === 'active' && state.status === 'active') {
           if (prevState.currentPlayer !== state.currentPlayer) {
-            if (state.currentPlayer === state.myPlayer) {
-              showInfo('Ваш ход!', 2000)
+            // Показываем уведомление только если ход перешел от противника к нам
+            const prevWasOpponent = prevState.currentPlayer !== prevState.myPlayer
+            const nowIsMyTurn = state.currentPlayer === state.myPlayer
+            if (prevWasOpponent && nowIsMyTurn) {
+              showInfo('Ваш ход!', 1500)
             }
           }
         }
         
         // Уведомление о начале игры
         if (prevState?.status === 'waiting' && state.status === 'active') {
-          showSuccess('Игра началась!', 3000)
+          showSuccess('Игра началась!', 1500)
           setGameTimer(0) // Сбрасываем таймер при старте
         }
 
@@ -289,11 +296,11 @@ function App() {
     })
 
     socket.on('drawRejected', () => {
-      showInfo('Соперник отклонил предложение ничьей', 3000)
+      showInfo('Соперник отклонил предложение ничьей', 1500)
     })
 
     socket.on('drawAccepted', () => {
-      showInfo('Ничья принята!', 3000)
+      showInfo('Ничья принята!', 1500)
     })
 
     socket.on('playerReady', (ready) => {
@@ -305,23 +312,23 @@ function App() {
       console.log('📥 Игрок присоединился:', player, color)
       if (bothJoined && player) {
         const colorText = color === 'white' ? '⚪ белые' : '⚫ черные'
-        showInfo(`👤 @${player.username} присоединился как ${colorText}!`, 4000)
+        showInfo(`👤 @${player.username} присоединился как ${colorText}!`, 1500)
       }
     })
 
     socket.on('gameStarted', () => {
       console.log('🎮 Игра началась!')
       setLoading(false) // Останавливаем загрузку
-      showSuccess('🎮 Игра началась! Оба игрока готовы!', 4000)
+      showSuccess('🎮 Игра началась! Оба игрока готовы!', 1500)
     })
     
     socket.on('fukiModeChanged', (enabled) => {
       console.log(`🔥 Режим фуков: ${enabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`)
       // Показываем уведомление только один раз при явном изменении
       if (enabled) {
-        showInfo('🔥 Режим фуков включен!', 3000)
+        showInfo('🔥 Режим фуков включен!', 1500)
       } else {
-        showInfo('♟️ Режим фуков выключен', 3000)
+        showInfo('♟️ Режим фуков выключен', 1500)
       }
       // Обновляем ref, чтобы не показывать уведомление при следующем gameState
       prevFukiModeRef.current = enabled
@@ -344,30 +351,38 @@ function App() {
       console.log('📥 Результат хода:', result)
       if (result.success) {
         if (result.gameState) {
-          // Конвертируем состояние
-          let pieces = []
-          if (result.gameState.pieces && Array.isArray(result.gameState.pieces)) {
-            pieces = result.gameState.pieces
-          } else if (result.gameState.board) {
-            pieces = boardToPieces(result.gameState.board)
-          }
+          // Используем функциональное обновление для сохранения myPlayerColor
+          setGameState(prevState => {
+            // Конвертируем состояние
+            let pieces = []
+            if (result.gameState.pieces && Array.isArray(result.gameState.pieces)) {
+              pieces = result.gameState.pieces
+            } else if (result.gameState.board) {
+              pieces = boardToPieces(result.gameState.board)
+            }
 
-          const currentPlayerColor = result.gameState.currentPlayerColor || 
-            (result.gameState.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
-          
-          const mustCaptureFrom = result.gameState.mustCaptureFrom ? 
-            { row: result.gameState.mustCaptureFrom.row, col: result.gameState.mustCaptureFrom.col } : null
-          const validMoves = getAllValidMoves(pieces, currentPlayerColor, mustCaptureFrom)
+            const currentPlayerColor = result.gameState.currentPlayerColor || 
+              (result.gameState.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
+            
+            const mustCaptureFrom = result.gameState.mustCaptureFrom ? 
+              { row: result.gameState.mustCaptureFrom.row, col: result.gameState.mustCaptureFrom.col } : null
+            const validMoves = getAllValidMoves(pieces, currentPlayerColor, mustCaptureFrom)
 
-          const newState = {
-            ...result.gameState,
-            pieces,
-            currentPlayerColor,
-            validMoves,
-            mustCaptureFrom
-          }
-          // Используем функциональное обновление для немедленного обновления состояния
-          setGameState(newState)
+            // ВАЖНО: Сохраняем myPlayerColor из предыдущего состояния
+            const preservedMyPlayerColor = prevState?.myPlayerColor || 
+              (result.gameState.myPlayer === 'white' ? PieceColor.WHITE : 
+               result.gameState.myPlayer === 'black' ? PieceColor.BLACK : null)
+
+            const newState = {
+              ...result.gameState,
+              pieces,
+              currentPlayerColor,
+              myPlayerColor: preservedMyPlayerColor, // Сохраняем цвет игрока
+              validMoves,
+              mustCaptureFrom
+            }
+            return newState
+          })
         }
         setSelectedPieceId(null)
         
@@ -378,12 +393,12 @@ function App() {
         
         // Уведомление о превращении в дамку
         if (result.becameKing) {
-          showSuccess('Фишка стала дамкой!', 2000)
+          showSuccess('Фишка стала дамкой!', 1500)
         }
         
         // Уведомление о сгорании фишки в режиме фуков
         if (result.fukiBurned) {
-          showError('🔥 Фишка сгорела в огне!', 3000)
+          showError('🔥 Фишка сгорела в огне!', 1500)
           setHuffedPosition(result.fukiBurnedPosition || null)
           setTimeout(() => setHuffedPosition(null), 1000)
         }
@@ -391,15 +406,15 @@ function App() {
         // Уведомление о победе
         if (result.gameState?.status === 'finished') {
           if (result.gameState.winner === result.gameState.myPlayer) {
-            showSuccess('🎉 Поздравляем! Вы выиграли!', 5000)
+            showSuccess('🎉 Поздравляем! Вы выиграли!', 3000)
           } else if (result.gameState.winner === 'draw') {
-            showInfo('🤝 Ничья!', 4000)
+            showInfo('🤝 Ничья!', 2000)
           } else {
-            showError('😔 Вы проиграли', 4000)
+            showError('😔 Вы проиграли', 2000)
           }
         }
       } else {
-        showError(result.error || 'Неверный ход', 3000)
+        showError(result.error || 'Неверный ход', 1500)
       }
     })
     
@@ -459,6 +474,52 @@ function App() {
   const handleMovePiece = (move) => {
     if (!gameState || !socket) return
     if (gameState.status === 'finished') return
+
+    // Валидация: проверяем, что это наш ход
+    const myPlayerColor = gameState.myPlayerColor || 
+      (gameState.myPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
+    const currentPlayerColor = gameState.currentPlayerColor ||
+      (gameState.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
+    
+    if (myPlayerColor !== currentPlayerColor) {
+      showError('Сейчас не ваш ход!', 1500)
+      return
+    }
+
+    // Валидация: проверяем, что ход валиден
+    const selectedPiece = gameState.pieces?.find(p => p.id === selectedPieceId)
+    if (!selectedPiece) {
+      showError('Фишка не выбрана!', 1500)
+      return
+    }
+
+    // Валидация: проверяем, что выбранная фишка принадлежит текущему игроку
+    if (selectedPiece.color !== currentPlayerColor) {
+      showError('Нельзя ходить чужой фишкой!', 1500)
+      return
+    }
+
+    // Валидация: проверяем, что ход есть в списке валидных ходов
+    const isValidMove = gameState.validMoves?.some(m => 
+      m.from.row === move.from.row &&
+      m.from.col === move.from.col &&
+      m.to.row === move.to.row &&
+      m.to.col === move.to.col
+    )
+
+    if (!isValidMove) {
+      showError('Неверный ход!', 1500)
+      return
+    }
+
+    // Проверка обязательного взятия
+    if (gameState.mustCaptureFrom) {
+      if (selectedPiece.position.row !== gameState.mustCaptureFrom.row || 
+          selectedPiece.position.col !== gameState.mustCaptureFrom.col) {
+        showError('Обязательно бить выбранной фишкой!', 1500)
+        return
+      }
+    }
 
     // Отправляем ход на сервер
     socket.emit('makeMove', {
@@ -738,7 +799,7 @@ function App() {
                     lastMove={lastMove}
                     onSelectPiece={handleSelectPiece}
                     onMovePiece={handleMovePiece}
-                    boardRotation={gameState?.myPlayerColor === PieceColor.BLACK}
+                    boardRotation={gameState?.myPlayerColor === PieceColor.BLACK && gameState?.status === 'active'}
                     canInteract={!gameState?.winner && gameState?.currentPlayerColor === gameState?.myPlayerColor}
                     huffedPosition={huffedPosition}
                   />
