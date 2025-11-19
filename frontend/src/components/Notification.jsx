@@ -3,13 +3,16 @@ import './Notification.css'
 
 const Notification = ({ message, type = 'info', onClose, duration = 1000 }) => {
   useEffect(() => {
-    if (duration > 0) {
+    if (duration > 0 && onClose) {
       const timer = setTimeout(() => {
         onClose()
       }, duration)
-      return () => clearTimeout(timer)
+      return () => {
+        clearTimeout(timer)
+      }
     }
-  }, [duration, onClose])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duration]) // Убираем onClose из зависимостей, чтобы таймер не пересоздавался
 
   const icons = {
     success: '✓',

@@ -393,9 +393,12 @@ function App() {
         
         // Уведомление о сгорании фишки в режиме фуков
         if (result.fukiBurned) {
+          // Показываем уведомление только один раз
           showError('🔥 Фишка сгорела в огне!', 1000)
-          setHuffedPosition(result.fukiBurnedPosition || null)
-          setTimeout(() => setHuffedPosition(null), 1000)
+          if (result.fukiBurnedPosition) {
+            setHuffedPosition(result.fukiBurnedPosition)
+            setTimeout(() => setHuffedPosition(null), 1000)
+          }
         }
         
         // Уведомление о победе
@@ -415,6 +418,7 @@ function App() {
     
     socket.on('fukiBurned', ({ row, col }) => {
       console.log(`🔥 Фишка сгорела на позиции (${row}, ${col})`)
+      // Уведомление уже показано в moveResult, не дублируем
     })
     
     socket.on('playerSurrendered', ({ player, winner }) => {
