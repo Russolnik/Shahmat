@@ -635,19 +635,20 @@ function App() {
     setConfirmDialog({
       message: 'Вы уверены, что хотите выйти из игры?',
       onConfirm: () => {
-        // Очищаем состояние
+        // Отправляем событие выхода на сервер перед очисткой
+        if (socket && gameId) {
+          socket.emit('leaveGame')
+        }
+        
+        // Очищаем состояние (сокет отключится автоматически через хук при gameId = null)
         setGameId(null)
         setGameState(null)
         setSelectedPieceId(null)
         setLastMove(null)
         setPlayerReady({ white: false, black: false })
         setGameTimer(0)
-        
-        // Отключаемся от сокета
-        if (socket) {
-          socket.emit('leaveGame')
-          socket.disconnect()
-        }
+        setHuffedPosition(null)
+        setShowSeriesAlert(false)
         
         setConfirmDialog(null)
         showInfo('Вы вышли из игры', 1000)
@@ -668,44 +669,33 @@ function App() {
     
     console.log(`🔘 handleReady: отправка готовности для игры ${gameId}, пользователь ${user.id}`)
     
-    // Пробуем через API (для комнат)
-    try {
-      const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-      const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
-      const response = await fetch(`${apiPath}/set-ready`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.initData}`
-        },
-        body: JSON.stringify({ roomCode: gameId })
-      })
-      
-      const data = await response.json()
-      if (data.success) {
-        showInfo('Вы готовы! Ожидаем соперника...', 1000)
+    // Используем WebSocket для отправки готовности
+    if (socket && connected) {
+      socket.emit('setReady', gameId, user.id)
+      showInfo('Вы готовы! Ожидаем соперника...', 1000)
+    } else {
+      // Если сокет не подключен, пробуем через API
+      try {
+        const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+        const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
+        const response = await fetch(`${apiPath}/set-ready`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user.initData}`
+          },
+          body: JSON.stringify({ gameId, userId: user.id })
+        })
         
-        // Если оба готовы и игра началась, подключаемся через WebSocket
-        if (data.status === 'PLAYING' && socket) {
-          socket.emit('joinGame', data.gameId || gameId, user.id)
-        }
-      } else {
-        // Если API не сработал, пробуем через WebSocket (старый способ)
-        if (socket) {
-          socket.emit('setReady', gameId, user.id)
+        const data = await response.json()
+        if (data.success) {
           showInfo('Вы готовы! Ожидаем соперника...', 1000)
         } else {
           showError('Не удалось отправить готовность', 1000)
         }
-      }
-    } catch (error) {
-      console.error('Ошибка отправки готовности через API:', error)
-      // Пробуем через WebSocket
-      if (socket) {
-        socket.emit('setReady', gameId, user.id)
-        showInfo('Вы готовы! Ожидаем соперника...', 1000)
-      } else {
-        showError('Не удалось отправить готовность', 1000)
+      } catch (error) {
+        console.error('Ошибка отправки готовности через API:', error)
+        showError('Не удалось отправить готовность. Проверьте подключение.', 1000)
       }
     }
   }

@@ -128,10 +128,65 @@ app.post('/api/set-ready', async (req, res) => {
     const botToken = process.env.BOT_TOKEN
     
     const user = validateAuth(initData, botToken)
-    const { roomCode } = req.body
+    const { roomCode, gameId, userId } = req.body
 
+    // Поддержка обычных игр через gameId
+    if (gameId) {
+      const normalizedGameId = String(gameId).toUpperCase().trim()
+      const game = gameManager.getGame(normalizedGameId)
+      
+      if (!game) {
+        return res.status(404).json({ success: false, error: 'Игра не найдена' })
+      }
+
+      // Нормализуем ID для сравнения
+      const normalizedUserId = Number(userId || user.id) || (userId || user.id)
+      const whiteId = game.players.white ? (Number(game.players.white.id) || game.players.white.id) : null
+      const blackId = game.players.black ? (Number(game.players.black.id) || game.players.black.id) : null
+
+      // Определяем цвет игрока
+      let playerColor = null
+      if (whiteId === normalizedUserId || whiteId === userId) {
+        playerColor = 'white'
+      } else if (blackId === normalizedUserId || blackId === userId) {
+        playerColor = 'black'
+      } else {
+        return res.status(400).json({ success: false, error: 'Вы не участник этой игры' })
+      }
+
+      // Устанавливаем готовность через gameManager
+      game.setPlayerReady(playerColor, true)
+      
+      // Проверяем, готовы ли оба игрока
+      const whiteReady = game.playerReady.white
+      const blackReady = game.playerReady.black
+
+      if (whiteReady && blackReady && game.status === 'waiting') {
+        game.status = 'active'
+        game.lastActivityAt = Date.now()
+        
+        // Отправляем обновленное состояние всем игрокам через WebSocket
+        if (game.players.white) {
+          const whiteState = game.getState(game.players.white.id)
+          io.to(`game:${normalizedGameId}`).emit('gameState', whiteState)
+        }
+        if (game.players.black) {
+          const blackState = game.getState(game.players.black.id)
+          io.to(`game:${normalizedGameId}`).emit('gameState', blackState)
+        }
+        io.to(`game:${normalizedGameId}`).emit('gameStarted')
+      }
+
+      return res.json({ 
+        success: true, 
+        status: game.status,
+        playerReady: game.playerReady 
+      })
+    }
+
+    // Поддержка комнат через roomCode
     if (!roomCode) {
-      return res.status(400).json({ success: false, error: 'Код комнаты не указан' })
+      return res.status(400).json({ success: false, error: 'Код комнаты или ID игры не указан' })
     }
 
     const roomData = roomManager.setReady(roomCode, user.id)
