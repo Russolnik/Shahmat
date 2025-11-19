@@ -1,16 +1,16 @@
-// Компонент лобби из glasscheckers (адаптирован для Telegram)
+// Обновленная версия Lobby из glasscheckers (1)
 import React, { useState } from 'react';
 import { RoomState } from '../types';
 import { Copy, CheckCircle, Link as LinkIcon, Loader } from 'lucide-react';
 
-interface GlassLobbyProps {
+interface LobbyProps {
   room: RoomState;
   currentPlayerId: string;
   onReady: () => void;
   onLeave: () => void;
 }
 
-const GlassLobby: React.FC<GlassLobbyProps> = ({ room, currentPlayerId, onReady, onLeave }) => {
+const Lobby: React.FC<LobbyProps> = ({ room, currentPlayerId, onReady, onLeave }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
@@ -115,5 +115,4 @@ const GlassLobby: React.FC<GlassLobbyProps> = ({ room, currentPlayerId, onReady,
   );
 };
 
-export default GlassLobby;
-
+export default Lobby;

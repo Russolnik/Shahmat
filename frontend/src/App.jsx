@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import GlassBoard from './components/GlassBoard'
+import Board from './components/GlassBoard'
 import GlassGameInfo from './components/GlassGameInfo'
-import GlassLobby from './components/GlassLobby'
+import OldGameInfo from './components/GameInfo'
+import Lobby from './components/GlassLobby'
 import GameControls from './components/GameControls'
 import ReadyButton from './components/ReadyButton'
 import Notification from './components/Notification'
@@ -13,7 +14,7 @@ import { useTheme } from './hooks/useTheme'
 import { useNotifications } from './hooks/useNotifications'
 import { PieceColor, Move } from './types'
 import { boardToPieces, countCapturedPieces } from './utils/gameAdapter'
-import { getAllValidMoves } from './utils/glassCheckersLogic'
+import { getAllValidMoves, getAvailableCaptures, initializeBoard } from './utils/glassCheckersLogic'
 import './App.css'
 
 function App() {
@@ -711,7 +712,7 @@ function App() {
               <LoadingSpinner message="Подключение к игре..." />
             </div>
           )}
-          <GameInfo gameState={gameState} user={user} gameId={gameId} />
+          <OldGameInfo gameState={gameState} user={user} gameId={gameId} />
           {gameState?.status === 'waiting' && (
             <ReadyButton
               gameState={gameState}
@@ -726,7 +727,7 @@ function App() {
             <>
               <div className="flex flex-col md:flex-row gap-6 items-center justify-center w-full max-w-6xl px-4">
                 <div className="relative w-full max-w-[500px] aspect-square z-10">
-                  <GlassBoard
+                  <Board
                     pieces={gameState?.pieces || []}
                     validMoves={gameState?.validMoves || []}
                     selectedPieceId={selectedPieceId}

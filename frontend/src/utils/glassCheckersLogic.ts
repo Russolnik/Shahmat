@@ -1,4 +1,4 @@
-// Логика игры из glasscheckers (TypeScript версия для frontend)
+// Обновленная логика из glasscheckers (1)
 import { Piece, PieceColor, Position, Move } from '../types';
 
 export const getPieceAt = (pieces: Piece[], row: number, col: number): Piece | undefined => {
@@ -146,4 +146,3 @@ export const initializeBoard = (): Piece[] => {
   }
   return pieces;
 };
-
