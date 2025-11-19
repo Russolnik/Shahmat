@@ -184,15 +184,8 @@ export class GlassCheckersLogic {
     let fukiBurnedPosition = null
 
     // Если есть обязательное взятие, проверяем, что ход - это взятие
-    if (hasCaptures && !move.isCapture) {
-      // Если режим фуков выключен - обязательно рубить
-      if (!this.fukiMode) {
-        return { 
-          success: false, 
-          error: 'Обязательное взятие!',
-          mustCapture: true
-        }
-      }
+    // Убрана логика обязательного взятия - можно не рубить по желанию
+    if (hasCaptures && !move.isCapture && this.fukiMode) {
       // В режиме фуков: разрешаем не рубить, но фишка сгорит
       // Логика из Graphite-Checkers-main:
       // - Если фишка, которая делает ход, могла рубить - она сгорает

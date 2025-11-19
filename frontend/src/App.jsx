@@ -127,7 +127,7 @@ function App() {
       console.error('❌ Ошибка присоединения к комнате:', error)
       const errorMsg = 'Не удалось присоединиться к комнате.'
       setError(errorMsg)
-      showError(errorMsg, 4000)
+      showError(errorMsg, 1000)
       setLoading(false)
     }
   }
@@ -175,7 +175,7 @@ function App() {
       console.error('❌ Ошибка присоединения к игре:', error)
       const errorMsg = 'Не удалось присоединиться к игре.'
       setError(errorMsg)
-      showError(errorMsg, 4000)
+      showError(errorMsg, 1000)
       setLoading(false) // Останавливаем загрузку при ошибке
     }
     // Убираем finally, чтобы загрузка продолжалась только при успехе (для ожидания socket подключения)
@@ -267,13 +267,7 @@ function App() {
           }
         }
 
-        // Уведомление о серии ходов
-        if (mustCaptureFrom) {
-          setShowSeriesAlert(true)
-          setTimeout(() => setShowSeriesAlert(false), 3000)
-        } else {
-          setShowSeriesAlert(false)
-        }
+        // Уведомление о серии ходов убрано
         
         return newState
       })
@@ -297,11 +291,11 @@ function App() {
     })
 
     socket.on('drawRejected', () => {
-      showInfo('Соперник отклонил предложение ничьей', 1500)
+      showInfo('Соперник отклонил предложение ничьей', 1000)
     })
 
     socket.on('drawAccepted', () => {
-      showInfo('Ничья принята!', 1500)
+      showInfo('Ничья принята!', 1000)
     })
 
     socket.on('playerReady', (ready) => {
@@ -313,23 +307,23 @@ function App() {
       console.log('📥 Игрок присоединился:', player, color)
       if (bothJoined && player) {
         const colorText = color === 'white' ? '⚪ белые' : '⚫ черные'
-        showInfo(`👤 @${player.username} присоединился как ${colorText}!`, 1500)
+        showInfo(`👤 @${player.username} присоединился как ${colorText}!`, 1000)
       }
     })
 
     socket.on('gameStarted', () => {
       console.log('🎮 Игра началась!')
       setLoading(false) // Останавливаем загрузку
-      showSuccess('🎮 Игра началась! Оба игрока готовы!', 1500)
+      showSuccess('🎮 Игра началась! Оба игрока готовы!', 1000)
     })
     
     socket.on('fukiModeChanged', (enabled) => {
       console.log(`🔥 Режим фуков: ${enabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`)
       // Показываем уведомление только один раз при явном изменении
       if (enabled) {
-        showInfo('🔥 Режим фуков включен!', 1500)
+        showInfo('🔥 Режим фуков включен!', 1000)
       } else {
-        showInfo('♟️ Режим фуков выключен', 1500)
+        showInfo('♟️ Режим фуков выключен', 1000)
       }
       // Обновляем ref, чтобы не показывать уведомление при следующем gameState
       prevFukiModeRef.current = enabled
@@ -474,14 +468,6 @@ function App() {
 
     if (piece.color !== currentPlayerColor || piece.color !== myPlayerColor) return
 
-    // Проверяем обязательное взятие
-    if (gameState.mustCaptureFrom) {
-      if (piece.position.row !== gameState.mustCaptureFrom.row || 
-          piece.position.col !== gameState.mustCaptureFrom.col) {
-        return
-      }
-    }
-
     setSelectedPieceId(pieceId)
   }
 
@@ -497,20 +483,20 @@ function App() {
       (gameState.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
     
     if (myPlayerColor !== currentPlayerColor) {
-      showError('Сейчас не ваш ход!', 1500)
+      showError('Сейчас не ваш ход!', 1000)
       return
     }
 
     // Валидация: проверяем, что ход валиден
     const selectedPiece = gameState.pieces?.find(p => p.id === selectedPieceId)
     if (!selectedPiece) {
-      showError('Фишка не выбрана!', 1500)
+      showError('Фишка не выбрана!', 1000)
       return
     }
 
     // Валидация: проверяем, что выбранная фишка принадлежит текущему игроку
     if (selectedPiece.color !== currentPlayerColor) {
-      showError('Нельзя ходить чужой фишкой!', 1500)
+      showError('Нельзя ходить чужой фишкой!', 1000)
       return
     }
 
@@ -523,17 +509,8 @@ function App() {
     )
 
     if (!isValidMove) {
-      showError('Неверный ход!', 1500)
+      showError('Неверный ход!', 1000)
       return
-    }
-
-    // Проверка обязательного взятия
-    if (gameState.mustCaptureFrom) {
-      if (selectedPiece.position.row !== gameState.mustCaptureFrom.row || 
-          selectedPiece.position.col !== gameState.mustCaptureFrom.col) {
-        showError('Обязательно бить выбранной фишкой!', 1500)
-        return
-      }
     }
 
     // Отправляем ход на сервер
@@ -574,7 +551,7 @@ function App() {
       console.error('Ошибка создания игры:', error)
       const errorMsg = 'Не удалось создать игру. Попробуйте ещё раз.'
       setError(errorMsg)
-      showError(errorMsg, 4000)
+      showError(errorMsg, 1000)
     } finally {
       setLoading(false)
     }
@@ -607,7 +584,7 @@ function App() {
       if (data.success) {
         setGameId(normalizedId)
         setError(null)
-        showSuccess('Вы присоединились к игре!', 3000)
+        showSuccess('Вы присоединились к игре!', 1000)
       } else {
         const errorMsg = data.error || 'Не удалось присоединиться к игре'
         setError(errorMsg)
@@ -617,7 +594,7 @@ function App() {
       console.error('Ошибка присоединения к игре:', error)
       const errorMsg = 'Не удалось присоединиться к игре. Проверьте ID.'
       setError(errorMsg)
-      showError(errorMsg, 4000)
+      showError(errorMsg, 1000)
     } finally {
       setLoading(false)
     }
@@ -728,7 +705,7 @@ function App() {
         socket.emit('setReady', gameId, user.id)
         showInfo('Вы готовы! Ожидаем соперника...', 1000)
       } else {
-        showError('Не удалось отправить готовность', 3000)
+        showError('Не удалось отправить готовность', 1000)
       }
     }
   }
@@ -870,14 +847,6 @@ function App() {
                   guestConnected={gameState?.myPlayer === 'black' ? true : (gameState?.blackConnected !== false)}
                 />
               </div>
-              {showSeriesAlert && (
-                <div className="fixed top-24 md:top-10 left-1/2 -translate-x-1/2 z-[100] pointer-events-none animate-slide-down">
-                  <div className="glass-panel px-8 py-4 rounded-2xl border border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.3)] flex flex-col items-center bg-[#1a1a1a]/90 backdrop-blur-xl">
-                    <span className="text-red-500 font-black tracking-[0.2em] text-lg uppercase shadow-red-500/50 drop-shadow-sm">Обязательно Бить</span>
-                    <span className="text-gray-400 text-xs font-bold mt-1">(Серия ходов)</span>
-                  </div>
-                </div>
-              )}
               <GameControls
                 gameId={gameId}
                 onSurrender={handleSurrender}
