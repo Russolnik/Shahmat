@@ -1,5 +1,3 @@
-import { getPieceAt, isValidPos } from './checkersLogic.js'
-
 export class GlassCheckersLogic {
   constructor() {
     this.pieces = []
