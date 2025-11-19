@@ -252,8 +252,19 @@ function App() {
         
         // Уведомление о начале игры
         if (prevState?.status === 'waiting' && state.status === 'active') {
-          showSuccess('Игра началась!', 1500)
+          showSuccess('Игра началась!', 1000)
           setGameTimer(0) // Сбрасываем таймер при старте
+        }
+        
+        // Уведомление о завершении игры
+        if (prevState?.status === 'active' && state.status === 'finished') {
+          if (state.winner === state.myPlayer) {
+            showSuccess('🎉 Поздравляем! Вы выиграли!', 1000)
+          } else if (state.winner === 'draw') {
+            showInfo('🤝 Ничья!', 1000)
+          } else {
+            showError('😔 Вы проиграли', 1000)
+          }
         }
 
         // Уведомление о серии ходов
@@ -383,7 +394,7 @@ function App() {
         
         // Уведомление о превращении в дамку
         if (result.becameKing) {
-          showSuccess('Фишка стала дамкой!', 1500)
+          showSuccess('Фишка стала дамкой!', 1000)
         }
         
         // Уведомление о сгорании фишки в режиме фуков
@@ -404,12 +415,26 @@ function App() {
           }
         }
       } else {
-        showError(result.error || 'Неверный ход', 1500)
+        showError(result.error || 'Неверный ход', 1000)
       }
     })
     
     socket.on('fukiBurned', ({ row, col }) => {
       console.log(`🔥 Фишка сгорела на позиции (${row}, ${col})`)
+    })
+    
+    socket.on('playerSurrendered', ({ player, winner }) => {
+      console.log('📥 Игрок сдался:', player)
+      if (player && player.id !== user?.id) {
+        showInfo(`👤 @${player.username || player.first_name || 'Игрок'} сдался`, 1000)
+      }
+    })
+    
+    socket.on('playerLeft', ({ player, winner }) => {
+      console.log('📥 Игрок вышел:', player)
+      if (player && player.id !== user?.id) {
+        showInfo(`👤 @${player.username || player.first_name || 'Игрок'} вышел из игры`, 1000)
+      }
     })
 
     socket.on('error', (error) => {
@@ -841,8 +866,8 @@ function App() {
                   timer={gameTimer}
                   myId={String(user?.id || '')}
                   roomCode={gameId}
-                  hostConnected={true}
-                  guestConnected={true}
+                  hostConnected={gameState?.myPlayer === 'white' ? true : (gameState?.whiteConnected !== false)}
+                  guestConnected={gameState?.myPlayer === 'black' ? true : (gameState?.blackConnected !== false)}
                 />
               </div>
               {showSeriesAlert && (
@@ -861,6 +886,7 @@ function App() {
                 onLeave={handleLeave}
                 fukiMode={gameState?.fukiMode || false}
                 disabled={gameState?.status === 'finished'}
+                canLeave={gameState?.status === 'finished' || gameState?.status === 'waiting'}
               />
             </>
           )}

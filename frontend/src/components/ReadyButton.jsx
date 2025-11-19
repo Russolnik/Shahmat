@@ -68,7 +68,7 @@ const ReadyButton = ({ gameState, playerReady, onReady, onToggleFuki, onLeave, d
         <button 
           onClick={onLeave} 
           className="leave-btn"
-          disabled={disabled}
+          disabled={false}
         >
           Выйти из игры
         </button>

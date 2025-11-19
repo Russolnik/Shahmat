@@ -12,10 +12,10 @@ const Notification = ({ message, type = 'info', onClose, duration = 1000 }) => {
   }, [duration, onClose])
 
   const icons = {
-    success: '✅',
-    error: '❌',
-    warning: '⚠️',
-    info: 'ℹ️',
+    success: '✓',
+    error: '✕',
+    warning: '⚠',
+    info: 'ℹ',
     draw: '🤝'
   }
 

@@ -645,6 +645,44 @@ export const notifyGameFinished = async (gameId, winner, loser) => {
   }
 }
 
+// Уведомление о выходе игрока
+export const notifyPlayerLeft = async (gameId, leavingPlayer, winner, loser) => {
+  if (!bot) return
+  
+  try {
+    const winnerChatId = await getChatIdByUserId(winner.id)
+    const loserChatId = await getChatIdByUserId(loser.id)
+
+    if (winnerChatId) {
+      await bot.sendMessage(winnerChatId, `
+🎉 <b>Поздравляем! Вы выиграли!</b>
+
+🆔 ID игры: <code>${gameId}</code>
+👤 Соперник (@${leavingPlayer.username || 'unknown'}) вышел из игры
+
+Спасибо за игру! 🎮
+      `, {
+        parse_mode: 'HTML'
+      })
+    }
+
+    if (loserChatId && loserChatId !== winnerChatId) {
+      await bot.sendMessage(loserChatId, `
+😔 <b>Вы проиграли</b>
+
+🆔 ID игры: <code>${gameId}</code>
+👤 Соперник: @${winner.username || 'unknown'}
+
+Не расстраивайтесь, попробуйте ещё раз! 🎮
+      `, {
+        parse_mode: 'HTML'
+      })
+    }
+  } catch (error) {
+    console.error('Ошибка отправки уведомления о выходе игрока:', error)
+  }
+}
+
 // Обработка ничьей
 export const notifyDraw = async (gameId, player1, player2) => {
   if (!bot) return

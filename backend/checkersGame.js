@@ -10,6 +10,11 @@ export class CheckersGame {
       white: null,
       black: null
     }
+    // Статус подключения игроков
+    this.playerConnected = {
+      white: true,
+      black: true
+    }
     this.logic = new GlassCheckersLogic()
     // Храним состояние для цепочек взятий
     this.mustCaptureFrom = null
@@ -203,7 +208,10 @@ export class CheckersGame {
       isCreator: userId ? this.isCreator(userId) : false,
       mustCaptureFrom: this.mustCaptureFrom,
       capturedWhite: capturedWhite,
-      capturedBlack: capturedBlack
+      capturedBlack: capturedBlack,
+      // Статус подключения игроков
+      whiteConnected: this.playerConnected.white,
+      blackConnected: this.playerConnected.black
     }
 
     return state
@@ -328,6 +336,25 @@ export class CheckersGame {
     this.status = 'finished'
     this.winner = this.currentPlayer === 'white' ? 'black' : 'white'
     this.lastActivityAt = Date.now()
+    // Отмечаем сдавшегося игрока как отключенного
+    if (this.currentPlayer === 'white') {
+      this.playerConnected.white = false
+    } else {
+      this.playerConnected.black = false
+    }
+  }
+  
+  // Отметить игрока как отключенного
+  setPlayerDisconnected(playerId) {
+    const playerIdNum = Number(playerId) || playerId
+    const whiteId = this.players.white ? (Number(this.players.white.id) || this.players.white.id) : null
+    const blackId = this.players.black ? (Number(this.players.black.id) || this.players.black.id) : null
+    
+    if (whiteId === playerIdNum) {
+      this.playerConnected.white = false
+    } else if (blackId === playerIdNum) {
+      this.playerConnected.black = false
+    }
   }
   
   // Проверка, является ли игра неактивной (более 30 минут без активности)

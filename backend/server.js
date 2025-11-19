@@ -4,7 +4,7 @@ import { Server } from 'socket.io'
 import cors from 'cors'
 import { GameManager } from './gameManager.js'
 import { validateAuth, extractUserFromInitData } from './auth.js'
-import { initBot, notifyGameFinished, notifyDraw } from './bot.js'
+import { initBot, notifyGameFinished, notifyDraw, notifyPlayerLeft } from './bot.js'
 import { roomManager } from './roomManager.js'
 
 const app = express()
@@ -529,9 +529,24 @@ io.on('connection', (socket) => {
     if (!socket.gameId) return
     const game = gameManager.getGame(socket.gameId)
     if (game) {
+      const surrenderingPlayer = game.currentPlayer === 'white' ? game.players.white : game.players.black
       game.surrender()
-      const gameState = game.getState(socket.userId)
-      io.to(`game:${socket.gameId}`).emit('gameState', gameState)
+      
+      // Отправляем обновленное состояние всем игрокам
+      if (game.players.white) {
+        const whiteState = game.getState(game.players.white.id)
+        io.to(`game:${socket.gameId}`).emit('gameState', whiteState)
+      }
+      if (game.players.black) {
+        const blackState = game.getState(game.players.black.id)
+        io.to(`game:${socket.gameId}`).emit('gameState', blackState)
+      }
+      
+      // Уведомление о сдаче в веб
+      io.to(`game:${socket.gameId}`).emit('playerSurrendered', {
+        player: surrenderingPlayer,
+        winner: game.winner === 'white' ? game.players.white : game.players.black
+      })
       
       // Уведомление о победе через бота
       if (game.winner) {
@@ -540,6 +555,50 @@ io.on('connection', (socket) => {
         if (winner && loser) {
           notifyGameFinished(socket.gameId, winner, loser)
         }
+      }
+    }
+  })
+  
+  socket.on('leaveGame', () => {
+    if (!socket.gameId) return
+    const game = gameManager.getGame(socket.gameId)
+    if (game) {
+      const leavingPlayer = game.players.white?.id === socket.userId ? game.players.white : 
+                           game.players.black?.id === socket.userId ? game.players.black : null
+      
+      if (leavingPlayer && game.status === 'active') {
+        // Если игра активна, завершаем её
+        game.status = 'finished'
+        game.winner = game.players.white?.id === socket.userId ? 'black' : 'white'
+        game.setPlayerDisconnected(socket.userId)
+        
+        // Отправляем обновленное состояние
+        if (game.players.white) {
+          const whiteState = game.getState(game.players.white.id)
+          io.to(`game:${socket.gameId}`).emit('gameState', whiteState)
+        }
+        if (game.players.black) {
+          const blackState = game.getState(game.players.black.id)
+          io.to(`game:${socket.gameId}`).emit('gameState', blackState)
+        }
+        
+        // Уведомление о выходе в веб
+        io.to(`game:${socket.gameId}`).emit('playerLeft', {
+          player: leavingPlayer,
+          winner: game.winner === 'white' ? game.players.white : game.players.black
+        })
+        
+        // Уведомление через бота
+        const winner = game.winner === 'white' ? game.players.white : game.players.black
+        const loser = game.winner === 'white' ? game.players.black : game.players.white
+        if (winner && loser) {
+          notifyPlayerLeft(socket.gameId, leavingPlayer, winner, loser)
+        }
+      } else {
+        // Если игра еще не началась, просто отмечаем как отключенного
+        game.setPlayerDisconnected(socket.userId)
+        const gameState = game.getState(socket.userId)
+        io.to(`game:${socket.gameId}`).emit('gameState', gameState)
       }
     }
   })
@@ -578,6 +637,15 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id)
+    if (socket.gameId && socket.userId) {
+      const game = gameManager.getGame(socket.gameId)
+      if (game && game.status === 'active') {
+        // Отмечаем игрока как отключенного при разрыве соединения
+        game.setPlayerDisconnected(socket.userId)
+        const gameState = game.getState(socket.userId)
+        io.to(`game:${socket.gameId}`).emit('gameState', gameState)
+      }
+    }
   })
 })
 

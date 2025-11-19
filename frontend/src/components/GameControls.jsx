@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './GameControls.css'
 
-const GameControls = ({ gameId, onSurrender, onDraw, onToggleFuki, onLeave, fukiMode = false, disabled = false }) => {
+const GameControls = ({ gameId, onSurrender, onDraw, onToggleFuki, onLeave, fukiMode = false, disabled = false, canLeave = false }) => {
   return (
     <div className="game-controls">
       <button 
@@ -14,7 +14,7 @@ const GameControls = ({ gameId, onSurrender, onDraw, onToggleFuki, onLeave, fuki
       <button 
         onClick={onLeave} 
         className="control-btn leave"
-        disabled={disabled}
+        disabled={!canLeave}
       >
         Выйти
       </button>
