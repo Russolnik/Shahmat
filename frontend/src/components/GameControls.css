@@ -58,6 +58,40 @@
   transform: translateY(0);
 }
 
+.control-btn.leave {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  box-shadow: 0 4px 16px rgba(107, 114, 128, 0.4);
+}
+
+.control-btn.leave:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(107, 114, 128, 0.5);
+}
+
+.control-btn.leave:active {
+  transform: translateY(0);
+}
+
+.control-btn.fuki {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);
+  font-size: 1.2rem;
+}
+
+.control-btn.fuki:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(249, 115, 22, 0.5);
+}
+
+.control-btn.fuki:active {
+  transform: translateY(0);
+}
+
+.control-btn.fuki.active {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.5);
+}
+
 .control-btn.share {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);

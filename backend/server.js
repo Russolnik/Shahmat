@@ -489,14 +489,15 @@ io.on('connection', (socket) => {
           success: true,
           gameState: currentPlayerState,
           becameKing: result.becameKing || false,
-          fukiBurned: result.fukiBurned || false
+          fukiBurned: result.fukiBurned || false,
+          fukiBurnedPosition: result.fukiBurnedPosition || null
         })
         
         // Уведомление о сгорании фишки в режиме фуков
-        if (result.fukiBurned) {
+        if (result.fukiBurned && result.fukiBurnedPosition) {
           io.to(`game:${socket.gameId}`).emit('fukiBurned', {
-            row: to.row,
-            col: to.col
+            row: result.fukiBurnedPosition.row,
+            col: result.fukiBurnedPosition.col
           })
         }
 

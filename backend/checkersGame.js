@@ -316,7 +316,8 @@ export class CheckersGame {
         becameKing: result.becameKing || false,
         mustContinueCapture: result.mustContinueCapture || false,
         gameOver: result.gameOver || false,
-        fukiBurned: result.mustCapture && this.fukiMode // В режиме фуков пропуск взятия = сгорание
+        fukiBurned: result.fukiBurned || false,
+        fukiBurnedPosition: result.burnedPosition || null
       }
     }
 

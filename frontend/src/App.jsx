@@ -111,7 +111,7 @@ function App() {
       if (data.success) {
         setGameId(data.gameId || normalizedCode)
         setError(null)
-        showInfo('Вы присоединились к комнате!', 3000)
+        showInfo('Вы присоединились к комнате!', 1000)
         
         // Если игра уже началась, подключаемся через WebSocket
         if (data.status === 'PLAYING' && socket) {
@@ -120,7 +120,7 @@ function App() {
       } else {
         const errorMsg = data.error || 'Не удалось присоединиться к комнате'
         setError(errorMsg)
-        showError(errorMsg, 4000)
+        showError(errorMsg, 1000)
         setLoading(false)
       }
     } catch (error) {
@@ -164,11 +164,11 @@ function App() {
       if (data.success) {
         setGameId(normalizedId)
         setError(null)
-        showInfo('Вы присоединились к игре!', 3000)
+        showInfo('Вы присоединились к игре!', 1000)
       } else {
         const errorMsg = data.error || 'Не удалось присоединиться к игре'
         setError(errorMsg)
-        showError(errorMsg, 4000)
+        showError(errorMsg, 1000)
         setLoading(false) // Останавливаем загрузку при ошибке
       }
     } catch (error) {
@@ -248,17 +248,7 @@ function App() {
           mustCaptureFrom
         }
         
-        // Уведомления о смене хода (только если ход перешел от противника к нам)
-        if (prevState && prevState.status === 'active' && state.status === 'active') {
-          if (prevState.currentPlayer !== state.currentPlayer) {
-            // Показываем уведомление только если ход перешел от противника к нам
-            const prevWasOpponent = prevState.currentPlayer !== prevState.myPlayer
-            const nowIsMyTurn = state.currentPlayer === state.myPlayer
-            if (prevWasOpponent && nowIsMyTurn) {
-              showInfo('Ваш ход!', 1500)
-            }
-          }
-        }
+        // Уведомления о смене хода убраны по запросу
         
         // Уведомление о начале игры
         if (prevState?.status === 'waiting' && state.status === 'active') {
@@ -398,7 +388,7 @@ function App() {
         
         // Уведомление о сгорании фишки в режиме фуков
         if (result.fukiBurned) {
-          showError('🔥 Фишка сгорела в огне!', 1500)
+          showError('🔥 Фишка сгорела в огне!', 1000)
           setHuffedPosition(result.fukiBurnedPosition || null)
           setTimeout(() => setHuffedPosition(null), 1000)
         }
@@ -406,11 +396,11 @@ function App() {
         // Уведомление о победе
         if (result.gameState?.status === 'finished') {
           if (result.gameState.winner === result.gameState.myPlayer) {
-            showSuccess('🎉 Поздравляем! Вы выиграли!', 3000)
+            showSuccess('🎉 Поздравляем! Вы выиграли!', 1000)
           } else if (result.gameState.winner === 'draw') {
-            showInfo('🤝 Ничья!', 2000)
+            showInfo('🤝 Ничья!', 1000)
           } else {
-            showError('😔 Вы проиграли', 2000)
+            showError('😔 Вы проиграли', 1000)
           }
         }
       } else {
@@ -423,7 +413,7 @@ function App() {
     })
 
     socket.on('error', (error) => {
-      showError(error.message || 'Произошла ошибка', 3000)
+      showError(error.message || 'Произошла ошибка', 1000)
     })
 
     return () => {
@@ -549,11 +539,11 @@ function App() {
       if (data.gameId) {
         setGameId(data.gameId)
         setError(null)
-        showSuccess(`Игра создана! ID: ${data.gameId}`, 4000)
+        showSuccess(`Игра создана! ID: ${data.gameId}`, 1000)
       } else {
         const errorMsg = data.error || 'Ошибка создания игры'
         setError(errorMsg)
-        showError(errorMsg, 4000)
+        showError(errorMsg, 1000)
       }
     } catch (error) {
       console.error('Ошибка создания игры:', error)
@@ -569,7 +559,7 @@ function App() {
     if (!isAuthenticated || !id) {
       const errorMsg = 'Введите ID игры'
       setError(errorMsg)
-      showError(errorMsg, 3000)
+      showError(errorMsg, 1000)
       return
     }
     
@@ -596,7 +586,7 @@ function App() {
       } else {
         const errorMsg = data.error || 'Не удалось присоединиться к игре'
         setError(errorMsg)
-        showError(errorMsg, 4000)
+        showError(errorMsg, 1000)
       }
     } catch (error) {
       console.error('Ошибка присоединения к игре:', error)
@@ -624,7 +614,7 @@ function App() {
       onConfirm: () => {
         socket?.emit('surrender')
         setConfirmDialog(null)
-        showInfo('Вы сдались', 3000)
+        showInfo('Вы сдались', 1000)
       },
       onCancel: () => {
         setConfirmDialog(null)
@@ -636,7 +626,36 @@ function App() {
 
   const handleDraw = () => {
     socket?.emit('offerDraw')
-    showInfo('Предложение ничьей отправлено', 2000)
+    showInfo('Предложение ничьей отправлено', 1000)
+  }
+
+  const handleLeave = () => {
+    setConfirmDialog({
+      message: 'Вы уверены, что хотите выйти из игры?',
+      onConfirm: () => {
+        // Очищаем состояние
+        setGameId(null)
+        setGameState(null)
+        setSelectedPieceId(null)
+        setLastMove(null)
+        setPlayerReady({ white: false, black: false })
+        setGameTimer(0)
+        
+        // Отключаемся от сокета
+        if (socket) {
+          socket.emit('leaveGame')
+          socket.disconnect()
+        }
+        
+        setConfirmDialog(null)
+        showInfo('Вы вышли из игры', 1000)
+      },
+      onCancel: () => {
+        setConfirmDialog(null)
+      },
+      confirmText: 'Выйти',
+      cancelText: 'Отмена'
+    })
   }
 
   const handleReady = async () => {
@@ -662,7 +681,7 @@ function App() {
       
       const data = await response.json()
       if (data.success) {
-        showInfo('Вы готовы! Ожидаем соперника...', 2000)
+        showInfo('Вы готовы! Ожидаем соперника...', 1000)
         
         // Если оба готовы и игра началась, подключаемся через WebSocket
         if (data.status === 'PLAYING' && socket) {
@@ -672,9 +691,9 @@ function App() {
         // Если API не сработал, пробуем через WebSocket (старый способ)
         if (socket) {
           socket.emit('setReady', gameId, user.id)
-          showInfo('Вы готовы! Ожидаем соперника...', 2000)
+          showInfo('Вы готовы! Ожидаем соперника...', 1000)
         } else {
-          showError('Не удалось отправить готовность', 3000)
+          showError('Не удалось отправить готовность', 1000)
         }
       }
     } catch (error) {
@@ -682,7 +701,7 @@ function App() {
       // Пробуем через WebSocket
       if (socket) {
         socket.emit('setReady', gameId, user.id)
-        showInfo('Вы готовы! Ожидаем соперника...', 2000)
+        showInfo('Вы готовы! Ожидаем соперника...', 1000)
       } else {
         showError('Не удалось отправить готовность', 3000)
       }
@@ -784,6 +803,7 @@ function App() {
               playerReady={playerReady}
               onReady={handleReady}
               onToggleFuki={handleToggleFuki}
+              onLeave={handleLeave}
               disabled={!connected || loading}
               socket={socket}
             />
@@ -838,6 +858,7 @@ function App() {
                 onSurrender={handleSurrender}
                 onDraw={handleDraw}
                 onToggleFuki={handleToggleFuki}
+                onLeave={handleLeave}
                 fukiMode={gameState?.fukiMode || false}
                 disabled={gameState?.status === 'finished'}
               />

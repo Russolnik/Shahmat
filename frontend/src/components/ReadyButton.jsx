@@ -1,6 +1,6 @@
 import './ReadyButton.css'
 
-const ReadyButton = ({ gameState, playerReady, onReady, onToggleFuki, disabled, socket }) => {
+const ReadyButton = ({ gameState, playerReady, onReady, onToggleFuki, onLeave, disabled, socket }) => {
   if (!gameState || gameState.status !== 'waiting') {
     return null
   }
@@ -64,9 +64,17 @@ const ReadyButton = ({ gameState, playerReady, onReady, onToggleFuki, disabled, 
           </div>
         )}
       </div>
+      {onLeave && (
+        <button 
+          onClick={onLeave} 
+          className="leave-btn"
+          disabled={disabled}
+        >
+          Выйти из игры
+        </button>
+      )}
     </div>
   )
 }
 
 export default ReadyButton
-

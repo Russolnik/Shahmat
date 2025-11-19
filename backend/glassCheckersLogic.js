@@ -186,12 +186,42 @@ export class GlassCheckersLogic {
 
     // Если есть обязательное взятие, проверяем, что ход - это взятие
     if (hasCaptures && !move.isCapture) {
-      // В режиме фуков разрешаем не брать, но будет штраф
+      // В режиме фуков разрешаем не брать, но фишка сгорит
       if (!this.fukiMode) {
         return { 
           success: false, 
           error: 'Обязательное взятие!',
           mustCapture: true
+        }
+      }
+      // В режиме фуков: фишка, которая могла взять, но не взяла, сгорает
+      // Находим фишку, которая могла взять (та, что делает ход)
+      const pieceThatCouldCapture = pieces.find(p => 
+        p.color === playerTurn &&
+        p.position.row === move.from.row &&
+        p.position.col === move.from.col
+      )
+      
+      if (pieceThatCouldCapture) {
+        // Удаляем эту фишку (она сгорает) и выполняем ход другой фишкой, если возможно
+        // Но на самом деле, если фишка сгорела, ход не выполняется
+        const newPieces = pieces.filter(p => p.id !== pieceThatCouldCapture.id)
+        
+        // Переключаем ход
+        const nextPlayer = playerTurn === 'WHITE' ? 'BLACK' : 'WHITE'
+        
+        return {
+          success: true,
+          pieces: newPieces,
+          nextPlayer,
+          mustContinueCapture: false,
+          nextMustCaptureFrom: null,
+          winner: null,
+          gameOver: false,
+          becameKing: false,
+          fukiBurned: true,
+          burnedPieceId: pieceThatCouldCapture.id,
+          burnedPosition: pieceThatCouldCapture.position
         }
       }
     }
