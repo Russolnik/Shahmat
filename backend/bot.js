@@ -11,13 +11,80 @@ const MINI_APP_URL = process.env.MINI_APP_URL || 'http://localhost:5173'
 let bot = null
 if (BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE') {
   try {
-    bot = new TelegramBot(BOT_TOKEN, { polling: true })
+    bot = new TelegramBot(BOT_TOKEN, { 
+      polling: {
+        interval: 300,
+        autoStart: false,
+        params: {
+          timeout: 10
+        }
+      }
+    })
+    
+    // Обработка ошибок подключения
+    bot.on('polling_error', (error) => {
+      console.error('❌ Ошибка polling Telegram бота:', error.message)
+      // Не останавливаем сервер при ошибках polling
+    })
+    
+    bot.on('webhook_error', (error) => {
+      console.error('❌ Ошибка webhook Telegram бота:', error.message)
+    })
+    
+    // Запускаем polling вручную после настройки обработчиков
+    bot.startPolling().catch((error) => {
+      console.error('❌ Ошибка запуска polling:', error.message)
+      bot = null // Отключаем бота при критической ошибке
+    })
+    
     console.log('🤖 Telegram бот создан')
   } catch (error) {
     console.error('❌ Ошибка создания Telegram бота:', error.message)
+    console.error('   Детали:', error)
+    bot = null
   }
 } else {
   console.log('⚠️  Telegram бот не создан (BOT_TOKEN не указан)')
+}
+
+// Вспомогательная функция для безопасной отправки сообщений
+const safeSendMessage = async (chatId, text, options = {}) => {
+  if (!bot) {
+    console.warn('⚠️  Бот не инициализирован, сообщение не отправлено')
+    return false
+  }
+  try {
+    await bot.sendMessage(chatId, text, options)
+    return true
+  } catch (error) {
+    console.error('❌ Ошибка отправки сообщения:', error.message)
+    // Не пробрасываем ошибку дальше, чтобы не падал сервер
+    return false
+  }
+}
+
+// Вспомогательная функция для безопасного ответа на callback
+const safeAnswerCallback = async (queryId, options = {}) => {
+  if (!bot) return false
+  try {
+    await bot.answerCallbackQuery(queryId, options)
+    return true
+  } catch (error) {
+    console.error('❌ Ошибка ответа на callback:', error.message)
+    return false
+  }
+}
+
+// Вспомогательная функция для безопасного ответа на inline query
+const safeAnswerInlineQuery = async (queryId, results, options = {}) => {
+  if (!bot) return false
+  try {
+    await bot.answerInlineQuery(queryId, results, options)
+    return true
+  } catch (error) {
+    console.error('❌ Ошибка ответа на inline query:', error.message)
+    return false
+  }
 }
 
 // Менеджер игр (используем тот же, что и в сервере)
@@ -87,7 +154,7 @@ if (bot) {
       ]
     }
 
-    await bot.sendMessage(chatId, welcomeMessage, {
+    await safeSendMessage(chatId, welcomeMessage, {
       parse_mode: 'HTML',
       reply_markup: keyboard
     })
@@ -121,16 +188,16 @@ if (bot) {
           }
         }]
 
-        await bot.answerInlineQuery(query.id, results, {
+        await safeAnswerInlineQuery(query.id, results, {
           cache_time: 0
         })
       } else {
-        await bot.answerInlineQuery(query.id, [], {
+        await safeAnswerInlineQuery(query.id, [], {
           cache_time: 0
         })
       }
     } else {
-      await bot.answerInlineQuery(query.id, [], {
+      await safeAnswerInlineQuery(query.id, [], {
         cache_time: 0
       })
     }
@@ -187,10 +254,10 @@ if (bot) {
         await handleOpenGame(chatId, userId, gameId)
       }
 
-      await bot.answerCallbackQuery(query.id)
+      await safeAnswerCallback(query.id)
     } catch (error) {
       console.error('Ошибка обработки callback:', error)
-      await bot.answerCallbackQuery(query.id, {
+      await safeAnswerCallback(query.id, {
         text: 'Произошла ошибка. Попробуйте ещё раз.',
         show_alert: true
       })
@@ -616,29 +683,37 @@ export const notifyGameFinished = async (gameId, winner, loser) => {
     const loserChatId = await getChatIdByUserId(loser.id)
 
     if (winnerChatId) {
-      await bot.sendMessage(winnerChatId, `
+        try {
+        await bot.sendMessage(winnerChatId, `
 🎉 <b>Поздравляем! Вы выиграли!</b>
 
 🆔 ID игры: <code>${gameId}</code>
 👤 Соперник: @${loser.username || 'unknown'}
 
 Спасибо за игру! 🎮
-      `, {
-        parse_mode: 'HTML'
-      })
+        `, {
+          parse_mode: 'HTML'
+        })
+      } catch (err) {
+        console.error('Ошибка отправки сообщения победителю:', err.message)
+      }
     }
 
     if (loserChatId) {
-      await bot.sendMessage(loserChatId, `
+      try {
+        await bot.sendMessage(loserChatId, `
 😔 <b>Вы проиграли</b>
 
 🆔 ID игры: <code>${gameId}</code>
 👤 Соперник: @${winner.username || 'unknown'}
 
 Не расстраивайтесь, попробуйте ещё раз! 🎮
-      `, {
-        parse_mode: 'HTML'
-      })
+        `, {
+          parse_mode: 'HTML'
+        })
+      } catch (err) {
+        console.error('Ошибка отправки сообщения проигравшему:', err.message)
+      }
     }
   } catch (error) {
     console.error('Ошибка отправки уведомления о победе:', error)
@@ -654,29 +729,37 @@ export const notifyPlayerLeft = async (gameId, leavingPlayer, winner, loser) => 
     const loserChatId = await getChatIdByUserId(loser.id)
 
     if (winnerChatId) {
-      await bot.sendMessage(winnerChatId, `
+      try {
+        await bot.sendMessage(winnerChatId, `
 🎉 <b>Поздравляем! Вы выиграли!</b>
 
 🆔 ID игры: <code>${gameId}</code>
 👤 Соперник (@${leavingPlayer.username || 'unknown'}) вышел из игры
 
 Спасибо за игру! 🎮
-      `, {
-        parse_mode: 'HTML'
-      })
+        `, {
+          parse_mode: 'HTML'
+        })
+      } catch (err) {
+        console.error('Ошибка отправки сообщения победителю (выход):', err.message)
+      }
     }
 
     if (loserChatId && loserChatId !== winnerChatId) {
-      await bot.sendMessage(loserChatId, `
+      try {
+        await bot.sendMessage(loserChatId, `
 😔 <b>Вы проиграли</b>
 
 🆔 ID игры: <code>${gameId}</code>
 👤 Соперник: @${winner.username || 'unknown'}
 
 Не расстраивайтесь, попробуйте ещё раз! 🎮
-      `, {
-        parse_mode: 'HTML'
-      })
+        `, {
+          parse_mode: 'HTML'
+        })
+      } catch (err) {
+        console.error('Ошибка отправки сообщения проигравшему (выход):', err.message)
+      }
     }
   } catch (error) {
     console.error('Ошибка отправки уведомления о выходе игрока:', error)
@@ -700,10 +783,18 @@ export const notifyDraw = async (gameId, player1, player2) => {
     `
 
     if (chatId1) {
-      await bot.sendMessage(chatId1, message, { parse_mode: 'HTML' })
+      try {
+        await bot.sendMessage(chatId1, message, { parse_mode: 'HTML' })
+      } catch (err) {
+        console.error('Ошибка отправки сообщения о ничьей (игрок 1):', err.message)
+      }
     }
     if (chatId2) {
-      await bot.sendMessage(chatId2, message, { parse_mode: 'HTML' })
+      try {
+        await bot.sendMessage(chatId2, message, { parse_mode: 'HTML' })
+      } catch (err) {
+        console.error('Ошибка отправки сообщения о ничьей (игрок 2):', err.message)
+      }
     }
   } catch (error) {
     console.error('Ошибка отправки уведомления о ничьей:', error)
