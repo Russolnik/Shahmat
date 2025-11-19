@@ -424,7 +424,7 @@ function App() {
   }, [socket, gameState, showSuccess, showError, showInfo])
 
   // Обработка выбора фишки (новая логика из glasscheckers)
-  const handleSelectPiece = (pieceId: string) => {
+  const handleSelectPiece = (pieceId) => {
     if (!gameState || !socket) return
     if (gameState.status === 'finished') return
     
@@ -451,7 +451,7 @@ function App() {
   }
 
   // Обработка хода (новая логика из glasscheckers)
-  const handleMovePiece = (move: Move) => {
+  const handleMovePiece = (move) => {
     if (!gameState || !socket) return
     if (gameState.status === 'finished') return
 
