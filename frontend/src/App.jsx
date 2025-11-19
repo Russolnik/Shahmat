@@ -194,81 +194,84 @@ function App() {
 
     socket.on('gameState', (state) => {
       console.log('📥 Получено состояние игры:', state)
-      const prevState = gameState
       
-      // Конвертируем доску в фишки, если нужно
-      let pieces = []
-      if (state.pieces && Array.isArray(state.pieces)) {
-        pieces = state.pieces
-      } else if (state.board) {
-        pieces = boardToPieces(state.board)
-      }
-
-      // Конвертируем currentPlayer в PieceColor
-      const currentPlayerColor = state.currentPlayerColor || 
-        (state.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
-      
-      const myPlayerColor = state.myPlayerColor ||
-        (state.myPlayer === 'white' ? PieceColor.WHITE : 
-         state.myPlayer === 'black' ? PieceColor.BLACK : null)
-
-      // Подсчитываем захваченные фишки
-      const capturedWhite = state.capturedWhite || countCapturedPieces(pieces, PieceColor.WHITE)
-      const capturedBlack = state.capturedBlack || countCapturedPieces(pieces, PieceColor.BLACK)
-
-      // Получаем возможные ходы
-      const mustCaptureFrom = state.mustCaptureFrom ? 
-        { row: state.mustCaptureFrom.row, col: state.mustCaptureFrom.col } : null
-      const validMoves = getAllValidMoves(pieces, currentPlayerColor, mustCaptureFrom)
-
-      // Проверяем изменение режима фуков
-      const fukiModeChanged = prevState && prevState.fukiMode !== state.fukiMode
-      if (fukiModeChanged) {
-        if (prevFukiModeRef.current === state.fukiMode) {
-          console.log('🔥 Режим фуков изменен через gameState, уведомление уже показано')
-        } else {
-          prevFukiModeRef.current = state.fukiMode
+      // Используем функциональное обновление для получения предыдущего состояния
+      setGameState(prevState => {
+        // Конвертируем доску в фишки, если нужно
+        let pieces = []
+        if (state.pieces && Array.isArray(state.pieces)) {
+          pieces = state.pieces
+        } else if (state.board) {
+          pieces = boardToPieces(state.board)
         }
-      }
-      
-      // Обновляем состояние с новым форматом
-      const newState = {
-        ...state,
-        pieces,
-        currentPlayerColor,
-        myPlayerColor,
-        capturedWhite,
-        capturedBlack,
-        validMoves,
-        mustCaptureFrom
-      }
-      
-      setGameState(newState)
-      setSelectedPieceId(null)
-      setLoading(false)
-      
-      // Уведомления о смене хода
-      if (prevState && prevState.status === 'active' && state.status === 'active') {
-        if (prevState.currentPlayer !== state.currentPlayer) {
-          if (state.currentPlayer === state.myPlayer) {
-            showInfo('Ваш ход!', 2000)
+
+        // Конвертируем currentPlayer в PieceColor
+        const currentPlayerColor = state.currentPlayerColor || 
+          (state.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
+        
+        const myPlayerColor = state.myPlayerColor ||
+          (state.myPlayer === 'white' ? PieceColor.WHITE : 
+           state.myPlayer === 'black' ? PieceColor.BLACK : null)
+
+        // Подсчитываем захваченные фишки
+        const capturedWhite = state.capturedWhite || countCapturedPieces(pieces, PieceColor.WHITE)
+        const capturedBlack = state.capturedBlack || countCapturedPieces(pieces, PieceColor.BLACK)
+
+        // Получаем возможные ходы
+        const mustCaptureFrom = state.mustCaptureFrom ? 
+          { row: state.mustCaptureFrom.row, col: state.mustCaptureFrom.col } : null
+        const validMoves = getAllValidMoves(pieces, currentPlayerColor, mustCaptureFrom)
+
+        // Проверяем изменение режима фуков
+        const fukiModeChanged = prevState && prevState.fukiMode !== state.fukiMode
+        if (fukiModeChanged) {
+          if (prevFukiModeRef.current === state.fukiMode) {
+            console.log('🔥 Режим фуков изменен через gameState, уведомление уже показано')
+          } else {
+            prevFukiModeRef.current = state.fukiMode
           }
         }
-      }
-      
-      // Уведомление о начале игры
-      if (prevState?.status === 'waiting' && state.status === 'active') {
-        showSuccess('Игра началась!', 3000)
-        setGameTimer(0) // Сбрасываем таймер при старте
-      }
+        
+        // Обновляем состояние с новым форматом
+        const newState = {
+          ...state,
+          pieces,
+          currentPlayerColor,
+          myPlayerColor,
+          capturedWhite,
+          capturedBlack,
+          validMoves,
+          mustCaptureFrom
+        }
+        
+        // Уведомления о смене хода
+        if (prevState && prevState.status === 'active' && state.status === 'active') {
+          if (prevState.currentPlayer !== state.currentPlayer) {
+            if (state.currentPlayer === state.myPlayer) {
+              showInfo('Ваш ход!', 2000)
+            }
+          }
+        }
+        
+        // Уведомление о начале игры
+        if (prevState?.status === 'waiting' && state.status === 'active') {
+          showSuccess('Игра началась!', 3000)
+          setGameTimer(0) // Сбрасываем таймер при старте
+        }
 
-      // Уведомление о серии ходов
-      if (mustCaptureFrom) {
-        setShowSeriesAlert(true)
-        setTimeout(() => setShowSeriesAlert(false), 3000)
-      } else {
-        setShowSeriesAlert(false)
-      }
+        // Уведомление о серии ходов
+        if (mustCaptureFrom) {
+          setShowSeriesAlert(true)
+          setTimeout(() => setShowSeriesAlert(false), 3000)
+        } else {
+          setShowSeriesAlert(false)
+        }
+        
+        return newState
+      })
+      
+      setSelectedPieceId(null)
+      setLoading(false)
     })
 
     socket.on('drawOffered', () => {
@@ -363,6 +366,7 @@ function App() {
             validMoves,
             mustCaptureFrom
           }
+          // Используем функциональное обновление для немедленного обновления состояния
           setGameState(newState)
         }
         setSelectedPieceId(null)
@@ -422,7 +426,7 @@ function App() {
       socket.off('disconnect')
       socket.off('connect_error')
     }
-  }, [socket, gameState, showSuccess, showError, showInfo])
+  }, [socket, showSuccess, showError, showInfo])
 
   // Обработка выбора фишки (новая логика из glasscheckers)
   const handleSelectPiece = (pieceId) => {
@@ -741,16 +745,23 @@ function App() {
                 </div>
                 <GlassGameInfo
                   turn={gameState?.currentPlayerColor || PieceColor.WHITE}
-                  whiteName={gameState?.opponent && gameState?.myPlayer === 'white' 
-                    ? gameState.opponent.username 
-                    : (gameState?.myPlayer === 'white' ? user?.username || 'Вы' : 'Белые')}
-                  blackName={gameState?.opponent && gameState?.myPlayer === 'black' 
-                    ? gameState.opponent.username 
-                    : (gameState?.myPlayer === 'black' ? user?.username || 'Вы' : 'Черные')}
-                  capturedWhite={gameState?.capturedWhite || 0}
-                  capturedBlack={gameState?.capturedBlack || 0}
+                  hostName={gameState?.myPlayer === 'white' 
+                    ? (user?.username || user?.first_name || 'Вы')
+                    : (gameState?.opponent?.username || gameState?.opponent?.first_name || 'Соперник')}
+                  hostColor={PieceColor.WHITE}
+                  hostScore={gameState?.capturedBlack || 0}
+                  hostId={gameState?.myPlayer === 'white' ? String(user?.id || '') : String(gameState?.opponent?.id || '')}
+                  guestName={gameState?.myPlayer === 'black' 
+                    ? (user?.username || user?.first_name || 'Вы')
+                    : (gameState?.opponent?.username || gameState?.opponent?.first_name || 'Соперник')}
+                  guestColor={PieceColor.BLACK}
+                  guestScore={gameState?.capturedWhite || 0}
+                  guestId={gameState?.myPlayer === 'black' ? String(user?.id || '') : String(gameState?.opponent?.id || '')}
                   timer={gameTimer}
-                  myColor={gameState?.myPlayerColor}
+                  myId={String(user?.id || '')}
+                  roomCode={gameId}
+                  hostConnected={true}
+                  guestConnected={true}
                 />
               </div>
               {showSeriesAlert && (
