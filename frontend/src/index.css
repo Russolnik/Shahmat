@@ -2,6 +2,98 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom One-Shot Animations */
+@keyframes ripple {
+  0% { transform: scale(0.4); opacity: 0.8; border-width: 4px; }
+  100% { transform: scale(1.4); opacity: 0; border-width: 0px; }
+}
+
+@keyframes shockwave {
+  0% { transform: scale(0.8); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; background-color: rgba(239, 68, 68, 0.2); }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes shine {
+  0% { transform: translateY(100%) rotate(45deg); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(-100%) rotate(45deg); opacity: 0; }
+}
+
+@keyframes slideDown {
+  0% { transform: translate(-50%, -100%); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.animate-ripple-once {
+  animation: ripple 0.6s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+
+.animate-shockwave-once {
+  animation: shockwave 0.5s ease-out forwards;
+}
+
+.animate-shine-once {
+  animation: shine 0.8s ease-in-out forwards;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Grain Texture */
+.bg-grain::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Day Mode Background */
+body.light {
+  background: #e2e4e6;
+  color: #1a1a1a;
+}
+
+/* Night Mode Background */
+body.dark {
+  background: #0f1012;
+  color: #ffffff;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+body.light .glass-panel {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  color: #000;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 2px;
+}
+
 :root {
   /* Светлая тема - тёплые тона */
   --board-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

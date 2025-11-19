@@ -1,4 +1,4 @@
-import { CheckersLogic } from './checkersLogic.js'
+import { GlassCheckersLogic } from './glassCheckersLogic.js'
 
 export class CheckersGame {
   constructor(gameId, creator) {
@@ -10,7 +10,11 @@ export class CheckersGame {
       white: null,
       black: null
     }
-    this.logic = new CheckersLogic()
+    this.logic = new GlassCheckersLogic()
+    // Храним состояние для цепочек взятий
+    this.mustCaptureFrom = null
+    // Инициализируем фишки при создании игры
+    this.logic.setBoard(this.logic.initializeBoard())
     this.status = 'waiting' // waiting, active, finished
     this.winner = null
     // Белые всегда ходят первыми (стандартные правила шашек)
@@ -150,42 +154,93 @@ export class CheckersGame {
       }
     }
 
-    // Получаем доску из логики
-    let board = this.logic.getBoard()
+    // Получаем фишки из логики
+    let pieces = this.logic.getBoard()
     
-    // Проверяем, что доска инициализирована
-    if (!board || board.length === 0) {
-      console.error(`❌ ОШИБКА: Доска пустая в getState для игры ${this.gameId}!`)
+    // Проверяем, что фишки инициализированы
+    if (!pieces || pieces.length === 0) {
+      console.error(`❌ ОШИБКА: Фишки не инициализированы в getState для игры ${this.gameId}!`)
       console.error(`   Статус: ${this.status}, Логика: ${this.logic ? 'есть' : 'отсутствует'}`)
-      // Переинициализируем доску, если она пустая и игра еще не началась
+      // Переинициализируем фишки, если они пустые и игра еще не началась
       if (this.status === 'waiting' && this.logic) {
-        console.log(`🔧 Переинициализация доски для игры ${this.gameId}`)
-        this.logic.board = this.logic.initializeBoard()
-        board = this.logic.getBoard()
+        console.log(`🔧 Переинициализация фишек для игры ${this.gameId}`)
+        this.logic.setBoard(this.logic.initializeBoard())
+        pieces = this.logic.getBoard()
       }
     }
 
+    // Конвертируем фишки в формат доски для совместимости со старым фронтендом
+    const board = this.piecesToBoard(pieces)
+    
+    // Подсчитываем захваченные фишки
+    const totalWhite = 12
+    const totalBlack = 12
+    const currentWhite = pieces.filter(p => p.color === 'WHITE').length
+    const currentBlack = pieces.filter(p => p.color === 'BLACK').length
+    const capturedWhite = Math.max(0, totalWhite - currentWhite)
+    const capturedBlack = Math.max(0, totalBlack - currentBlack)
+
+    // Конвертируем currentPlayer в формат PieceColor
+    const currentPlayerColor = this.currentPlayer === 'white' ? 'WHITE' : 'BLACK'
+    const myPlayerColor = myPlayer === 'white' ? 'WHITE' : (myPlayer === 'black' ? 'BLACK' : null)
+    
     const state = {
       gameId: this.gameId,
-      board: board,
-      currentPlayer: this.currentPlayer,
+      board: board, // Старый формат для совместимости
+      pieces: pieces, // Новый формат из glasscheckers
+      currentPlayer: this.currentPlayer, // 'white' или 'black' для совместимости
+      currentPlayerColor: currentPlayerColor, // 'WHITE' или 'BLACK' для glasscheckers
       status: this.status,
       winner: this.winner,
       myPlayer,
+      myPlayerColor: myPlayerColor, // Для glasscheckers компонентов
       opponent: opponent ? {
         id: opponent.id,
         username: opponent.username || opponent.first_name || `user_${opponent.id}`,
         first_name: opponent.first_name || opponent.username || `user_${opponent.id}`
       } : null,
       fukiMode: this.fukiMode,
-      isCreator: userId ? this.isCreator(userId) : false
+      isCreator: userId ? this.isCreator(userId) : false,
+      mustCaptureFrom: this.mustCaptureFrom,
+      capturedWhite: capturedWhite,
+      capturedBlack: capturedBlack
     }
 
     return state
   }
 
+  // Конвертация фишек в формат доски (для совместимости)
+  piecesToBoard(pieces) {
+    const board = Array(8).fill(null).map(() => Array(8).fill(null))
+    pieces.forEach(piece => {
+      const row = piece.position.row
+      const col = piece.position.col
+      board[row][col] = {
+        player: piece.color === 'WHITE' ? 'white' : 'black',
+        isKing: piece.isKing
+      }
+    })
+    return board
+  }
+
   getPossibleMoves(row, col) {
-    return this.logic.getPossibleMoves(row, col, this.currentPlayer)
+    const pieces = this.logic.getBoard()
+    const piece = pieces.find(p => p.position.row === row && p.position.col === col)
+    if (!piece) return []
+    
+    const playerColor = this.currentPlayer === 'white' ? 'WHITE' : 'BLACK'
+    if (piece.color !== playerColor) return []
+    
+    const moves = this.logic.getMovesForPiece(piece, pieces, this.mustCaptureFrom)
+    
+    // Конвертируем в старый формат для совместимости
+    return moves.map(m => ({
+      row: m.to.row,
+      col: m.to.col,
+      isCapture: m.isCapture,
+      capturedRow: m.capturedPosition?.row,
+      capturedCol: m.capturedPosition?.col
+    }))
   }
 
   makeMove(from, to) {
@@ -193,27 +248,75 @@ export class CheckersGame {
       return { success: false, error: 'Игра не активна' }
     }
 
-    const result = this.logic.makeMove(
-      from.row,
-      from.col,
-      to.row,
-      to.col,
-      this.currentPlayer
+    const pieces = this.logic.getBoard()
+    const playerColor = this.currentPlayer === 'white' ? 'WHITE' : 'BLACK'
+    
+    // Находим фишку
+    const piece = pieces.find(p => 
+      p.position.row === from.row && 
+      p.position.col === from.col &&
+      p.color === playerColor
     )
+    
+    if (!piece) {
+      return { success: false, error: 'Фишка не найдена' }
+    }
+
+    // Создаем объект хода
+    const move = {
+      from: piece.position,
+      to: to,
+      isCapture: false,
+      capturedPieceId: null,
+      capturedPosition: null
+    }
+
+    // Проверяем, является ли это взятием
+    const validMoves = this.logic.getMovesForPiece(piece, pieces, this.mustCaptureFrom)
+    const validMove = validMoves.find(m => 
+      m.to.row === to.row && 
+      m.to.col === to.col
+    )
+    
+    if (!validMove) {
+      return { success: false, error: 'Неверный ход' }
+    }
+
+    move.isCapture = validMove.isCapture
+    move.capturedPieceId = validMove.capturedPieceId
+    move.capturedPosition = validMove.capturedPosition
+
+    // Выполняем ход
+    const result = this.logic.makeMove(pieces, move, playerColor, this.mustCaptureFrom)
 
     if (result.success) {
+      // Обновляем фишки в логике
+      this.logic.setBoard(result.pieces)
+      
+      // Обновляем состояние
+      this.mustCaptureFrom = result.nextMustCaptureFrom
+      
       // Обновляем время последней активности
       this.lastActivityAt = Date.now()
       
       // Проверка на победу
       if (result.gameOver) {
         this.status = 'finished'
-        this.winner = this.currentPlayer
+        this.winner = result.winner === 'WHITE' ? 'white' : 'black'
       } else {
         // Переключение хода, если нет обязательного продолжения боя
         if (!result.mustContinueCapture) {
           this.currentPlayer = this.currentPlayer === 'white' ? 'black' : 'white'
+          this.mustCaptureFrom = null
         }
+      }
+      
+      return {
+        success: true,
+        becameKing: result.becameKing || false,
+        mustContinueCapture: result.mustContinueCapture || false,
+        gameOver: result.gameOver || false,
+        fukiBurned: result.mustCapture && this.fukiMode // В режиме фуков пропуск взятия = сгорание
       }
     }
 

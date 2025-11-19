@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import Board from './components/Board'
-import GameInfo from './components/GameInfo'
+import GlassBoard from './components/GlassBoard'
+import GlassGameInfo from './components/GlassGameInfo'
+import GlassLobby from './components/GlassLobby'
 import GameControls from './components/GameControls'
 import ReadyButton from './components/ReadyButton'
 import Notification from './components/Notification'
@@ -10,6 +11,9 @@ import { useTelegramAuth } from './hooks/useTelegramAuth'
 import { useGameSocket } from './hooks/useGameSocket'
 import { useTheme } from './hooks/useTheme'
 import { useNotifications } from './hooks/useNotifications'
+import { PieceColor, Move } from './types'
+import { boardToPieces, countCapturedPieces } from './utils/gameAdapter'
+import { getAllValidMoves } from './utils/glassCheckersLogic'
 import './App.css'
 
 function App() {
@@ -19,12 +23,15 @@ function App() {
     return savedGameId || null
   })
   const [gameState, setGameState] = useState(null)
-  const [selectedCell, setSelectedCell] = useState(null)
-  const [possibleMoves, setPossibleMoves] = useState([])
+  const [selectedPieceId, setSelectedPieceId] = useState(null)
+  const [lastMove, setLastMove] = useState(null)
+  const [huffedPosition, setHuffedPosition] = useState(null)
+  const [showSeriesAlert, setShowSeriesAlert] = useState(false)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [playerReady, setPlayerReady] = useState({ white: false, black: false })
+  const [gameTimer, setGameTimer] = useState(0)
   const prevFukiModeRef = useRef(null)
   
   const { user, isAuthenticated, initTelegram, urlParams } = useTelegramAuth()
@@ -45,6 +52,15 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated || !user) return
     
+    // Проверяем startapp параметр (для deep links комнат)
+    const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
+    if (startParam && startParam.startsWith('room-')) {
+      const roomCode = startParam.replace('room-', '').toUpperCase()
+      console.log(`🔗 Обнаружен deep link для комнаты ${roomCode}`)
+      joinRoomFromDeepLink(roomCode)
+      return
+    }
+    
     // Приоритет: URL параметры > сохраненный gameId
     if (urlParams?.gameId) {
       const normalizedId = String(urlParams.gameId).toUpperCase().trim()
@@ -60,6 +76,60 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlParams?.gameId, isAuthenticated, user?.id])
+
+  // Присоединение к комнате через deep link
+  const joinRoomFromDeepLink = async (roomCode) => {
+    if (!isAuthenticated || !user || !roomCode) {
+      console.log('⚠️ joinRoomFromDeepLink: пропущено - не авторизован или нет roomCode')
+      return
+    }
+    
+    const normalizedCode = String(roomCode).toUpperCase().trim()
+    console.log(`🔗 joinRoomFromDeepLink: присоединение к комнате ${normalizedCode}`)
+    setLoading(true)
+    
+    try {
+      const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
+      const url = `${apiPath}/join-room`
+      console.log(`📡 Запрос к API: ${url}`)
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.initData}`
+        },
+        body: JSON.stringify({ roomCode: normalizedCode })
+      })
+      
+      console.log(`📥 Ответ API: статус ${response.status}`)
+      const data = await response.json()
+      console.log(`📥 Данные ответа:`, data)
+      
+      if (data.success) {
+        setGameId(data.gameId || normalizedCode)
+        setError(null)
+        showInfo('Вы присоединились к комнате!', 3000)
+        
+        // Если игра уже началась, подключаемся через WebSocket
+        if (data.status === 'PLAYING' && socket) {
+          socket.emit('joinGame', data.gameId || normalizedCode, user.id)
+        }
+      } else {
+        const errorMsg = data.error || 'Не удалось присоединиться к комнате'
+        setError(errorMsg)
+        showError(errorMsg, 4000)
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('❌ Ошибка присоединения к комнате:', error)
+      const errorMsg = 'Не удалось присоединиться к комнате.'
+      setError(errorMsg)
+      showError(errorMsg, 4000)
+      setLoading(false)
+    }
+  }
 
   const joinGameFromBot = async (id, userId) => {
     if (!isAuthenticated || !id) {
@@ -110,6 +180,14 @@ function App() {
     // Убираем finally, чтобы загрузка продолжалась только при успехе (для ожидания socket подключения)
   }
 
+  // Таймер игры
+  useEffect(() => {
+    if (gameState?.status === 'active' && !gameState?.isGameOver) {
+      const interval = setInterval(() => setGameTimer(t => t + 1), 1000)
+      return () => clearInterval(interval)
+    }
+  }, [gameState?.status, gameState?.isGameOver])
+
   useEffect(() => {
     if (!socket) return
 
@@ -117,23 +195,56 @@ function App() {
       console.log('📥 Получено состояние игры:', state)
       const prevState = gameState
       
-      // Проверяем изменение режима фуков через gameState
-      // Если режим изменился, но мы уже получили fukiModeChanged, не показываем уведомление
+      // Конвертируем доску в фишки, если нужно
+      let pieces = []
+      if (state.pieces && Array.isArray(state.pieces)) {
+        pieces = state.pieces
+      } else if (state.board) {
+        pieces = boardToPieces(state.board)
+      }
+
+      // Конвертируем currentPlayer в PieceColor
+      const currentPlayerColor = state.currentPlayerColor || 
+        (state.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
+      
+      const myPlayerColor = state.myPlayerColor ||
+        (state.myPlayer === 'white' ? PieceColor.WHITE : 
+         state.myPlayer === 'black' ? PieceColor.BLACK : null)
+
+      // Подсчитываем захваченные фишки
+      const capturedWhite = state.capturedWhite || countCapturedPieces(pieces, PieceColor.WHITE)
+      const capturedBlack = state.capturedBlack || countCapturedPieces(pieces, PieceColor.BLACK)
+
+      // Получаем возможные ходы
+      const mustCaptureFrom = state.mustCaptureFrom ? 
+        { row: state.mustCaptureFrom.row, col: state.mustCaptureFrom.col } : null
+      const validMoves = getAllValidMoves(pieces, currentPlayerColor, mustCaptureFrom)
+
+      // Проверяем изменение режима фуков
       const fukiModeChanged = prevState && prevState.fukiMode !== state.fukiMode
       if (fukiModeChanged) {
-        // Если уведомление уже показано через fukiModeChanged, не показываем снова
         if (prevFukiModeRef.current === state.fukiMode) {
           console.log('🔥 Режим фуков изменен через gameState, уведомление уже показано')
         } else {
-          // Обновляем ref для следующей проверки
           prevFukiModeRef.current = state.fukiMode
         }
       }
       
-      setGameState(state)
-      setSelectedCell(null)
-      setPossibleMoves([])
-      setLoading(false) // Останавливаем загрузку при получении состояния
+      // Обновляем состояние с новым форматом
+      const newState = {
+        ...state,
+        pieces,
+        currentPlayerColor,
+        myPlayerColor,
+        capturedWhite,
+        capturedBlack,
+        validMoves,
+        mustCaptureFrom
+      }
+      
+      setGameState(newState)
+      setSelectedPieceId(null)
+      setLoading(false)
       
       // Уведомления о смене хода
       if (prevState && prevState.status === 'active' && state.status === 'active') {
@@ -147,6 +258,15 @@ function App() {
       // Уведомление о начале игры
       if (prevState?.status === 'waiting' && state.status === 'active') {
         showSuccess('Игра началась!', 3000)
+        setGameTimer(0) // Сбрасываем таймер при старте
+      }
+
+      // Уведомление о серии ходов
+      if (mustCaptureFrom) {
+        setShowSeriesAlert(true)
+        setTimeout(() => setShowSeriesAlert(false), 3000)
+      } else {
+        setShowSeriesAlert(false)
       }
     })
 
@@ -217,10 +337,39 @@ function App() {
     })
 
     socket.on('moveResult', (result) => {
+      console.log('📥 Результат хода:', result)
       if (result.success) {
-        setGameState(result.gameState)
-        setSelectedCell(null)
-        setPossibleMoves([])
+        if (result.gameState) {
+          // Конвертируем состояние
+          let pieces = []
+          if (result.gameState.pieces && Array.isArray(result.gameState.pieces)) {
+            pieces = result.gameState.pieces
+          } else if (result.gameState.board) {
+            pieces = boardToPieces(result.gameState.board)
+          }
+
+          const currentPlayerColor = result.gameState.currentPlayerColor || 
+            (result.gameState.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
+          
+          const mustCaptureFrom = result.gameState.mustCaptureFrom ? 
+            { row: result.gameState.mustCaptureFrom.row, col: result.gameState.mustCaptureFrom.col } : null
+          const validMoves = getAllValidMoves(pieces, currentPlayerColor, mustCaptureFrom)
+
+          const newState = {
+            ...result.gameState,
+            pieces,
+            currentPlayerColor,
+            validMoves,
+            mustCaptureFrom
+          }
+          setGameState(newState)
+        }
+        setSelectedPieceId(null)
+        
+        // Обновляем lastMove для анимации
+        if (result.move) {
+          setLastMove(result.move)
+        }
         
         // Уведомление о превращении в дамку
         if (result.becameKing) {
@@ -230,6 +379,8 @@ function App() {
         // Уведомление о сгорании фишки в режиме фуков
         if (result.fukiBurned) {
           showError('🔥 Фишка сгорела в огне!', 3000)
+          setHuffedPosition(result.fukiBurnedPosition || null)
+          setTimeout(() => setHuffedPosition(null), 1000)
         }
         
         // Уведомление о победе
@@ -272,43 +423,45 @@ function App() {
     }
   }, [socket, gameState, showSuccess, showError, showInfo])
 
-  const handleCellClick = async (row, col) => {
+  // Обработка выбора фишки (новая логика из glasscheckers)
+  const handleSelectPiece = (pieceId: string) => {
     if (!gameState || !socket) return
-    
-    // Не позволяем ходить, если игра завершена
     if (gameState.status === 'finished') return
     
-    // Не позволяем ходить не в свой ход
-    if (gameState.currentPlayer !== gameState.myPlayer) return
+    const piece = gameState.pieces?.find(p => p.id === pieceId)
+    if (!piece) return
 
-    const cellKey = `${row}-${col}`
-    const cell = gameState.board[row]?.[col]
+    // Проверяем, что это фишка текущего игрока
+    const myPlayerColor = gameState.myPlayerColor || 
+      (gameState.myPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
+    const currentPlayerColor = gameState.currentPlayerColor ||
+      (gameState.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
 
-    // Если выбрана та же клетка - снимаем выбор
-    if (selectedCell === cellKey) {
-      setSelectedCell(null)
-      setPossibleMoves([])
-      return
+    if (piece.color !== currentPlayerColor || piece.color !== myPlayerColor) return
+
+    // Проверяем обязательное взятие
+    if (gameState.mustCaptureFrom) {
+      if (piece.position.row !== gameState.mustCaptureFrom.row || 
+          piece.position.col !== gameState.mustCaptureFrom.col) {
+        return
+      }
     }
 
-    // Если выбрана фишка текущего игрока
-    if (cell && cell.player === gameState.currentPlayer) {
-      setSelectedCell(cellKey)
-      // Запрос возможных ходов
-      socket.emit('getPossibleMoves', { row, col }, (moves) => {
-        setPossibleMoves(moves || [])
-      })
-      return
-    }
+    setSelectedPieceId(pieceId)
+  }
 
-    // Если выбрана клетка для хода
-    if (selectedCell && possibleMoves.some(m => m.row === row && m.col === col)) {
-      const [fromRow, fromCol] = selectedCell.split('-').map(Number)
-      socket.emit('makeMove', {
-        from: { row: fromRow, col: fromCol },
-        to: { row, col }
-      })
-    }
+  // Обработка хода (новая логика из glasscheckers)
+  const handleMovePiece = (move: Move) => {
+    if (!gameState || !socket) return
+    if (gameState.status === 'finished') return
+
+    // Отправляем ход на сервер
+    socket.emit('makeMove', {
+      from: move.from,
+      to: move.to
+    })
+
+    setSelectedPieceId(null)
   }
 
   const createGame = async () => {
@@ -420,14 +573,54 @@ function App() {
     showInfo('Предложение ничьей отправлено', 2000)
   }
 
-  const handleReady = () => {
-    if (!gameId || !user || !socket) {
-      console.log('⚠️ handleReady: нет gameId, user или socket')
+  const handleReady = async () => {
+    if (!gameId || !user) {
+      console.log('⚠️ handleReady: нет gameId или user')
       return
     }
+    
     console.log(`🔘 handleReady: отправка готовности для игры ${gameId}, пользователь ${user.id}`)
-    socket.emit('setReady', gameId, user.id)
-    showInfo('Вы готовы! Ожидаем соперника...', 2000)
+    
+    // Пробуем через API (для комнат)
+    try {
+      const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+      const apiPath = apiUrl ? `${apiUrl}/api` : '/api'
+      const response = await fetch(`${apiPath}/set-ready`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.initData}`
+        },
+        body: JSON.stringify({ roomCode: gameId })
+      })
+      
+      const data = await response.json()
+      if (data.success) {
+        showInfo('Вы готовы! Ожидаем соперника...', 2000)
+        
+        // Если оба готовы и игра началась, подключаемся через WebSocket
+        if (data.status === 'PLAYING' && socket) {
+          socket.emit('joinGame', data.gameId || gameId, user.id)
+        }
+      } else {
+        // Если API не сработал, пробуем через WebSocket (старый способ)
+        if (socket) {
+          socket.emit('setReady', gameId, user.id)
+          showInfo('Вы готовы! Ожидаем соперника...', 2000)
+        } else {
+          showError('Не удалось отправить готовность', 3000)
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка отправки готовности через API:', error)
+      // Пробуем через WebSocket
+      if (socket) {
+        socket.emit('setReady', gameId, user.id)
+        showInfo('Вы готовы! Ожидаем соперника...', 2000)
+      } else {
+        showError('Не удалось отправить готовность', 3000)
+      }
+    }
   }
   
   const handleToggleFuki = () => {
@@ -531,13 +724,42 @@ function App() {
           )}
           {(gameState?.status === 'active' || gameState?.status === 'finished') && (
             <>
-              <Board
-                board={gameState?.board || []}
-                selectedCell={selectedCell}
-                possibleMoves={possibleMoves}
-                onCellClick={handleCellClick}
-                myPlayer={gameState?.myPlayer}
-              />
+              <div className="flex flex-col md:flex-row gap-6 items-center justify-center w-full max-w-6xl px-4">
+                <div className="relative w-full max-w-[500px] aspect-square z-10">
+                  <GlassBoard
+                    pieces={gameState?.pieces || []}
+                    validMoves={gameState?.validMoves || []}
+                    selectedPieceId={selectedPieceId}
+                    lastMove={lastMove}
+                    onSelectPiece={handleSelectPiece}
+                    onMovePiece={handleMovePiece}
+                    boardRotation={gameState?.myPlayerColor === PieceColor.BLACK}
+                    canInteract={!gameState?.winner && gameState?.currentPlayerColor === gameState?.myPlayerColor}
+                    huffedPosition={huffedPosition}
+                  />
+                </div>
+                <GlassGameInfo
+                  turn={gameState?.currentPlayerColor || PieceColor.WHITE}
+                  whiteName={gameState?.opponent && gameState?.myPlayer === 'white' 
+                    ? gameState.opponent.username 
+                    : (gameState?.myPlayer === 'white' ? user?.username || 'Вы' : 'Белые')}
+                  blackName={gameState?.opponent && gameState?.myPlayer === 'black' 
+                    ? gameState.opponent.username 
+                    : (gameState?.myPlayer === 'black' ? user?.username || 'Вы' : 'Черные')}
+                  capturedWhite={gameState?.capturedWhite || 0}
+                  capturedBlack={gameState?.capturedBlack || 0}
+                  timer={gameTimer}
+                  myColor={gameState?.myPlayerColor}
+                />
+              </div>
+              {showSeriesAlert && (
+                <div className="fixed top-24 md:top-10 left-1/2 -translate-x-1/2 z-[100] pointer-events-none animate-slide-down">
+                  <div className="glass-panel px-8 py-4 rounded-2xl border border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.3)] flex flex-col items-center bg-[#1a1a1a]/90 backdrop-blur-xl">
+                    <span className="text-red-500 font-black tracking-[0.2em] text-lg uppercase shadow-red-500/50 drop-shadow-sm">Обязательно Бить</span>
+                    <span className="text-gray-400 text-xs font-bold mt-1">(Серия ходов)</span>
+                  </div>
+                </div>
+              )}
               <GameControls
                 gameId={gameId}
                 onSurrender={handleSurrender}

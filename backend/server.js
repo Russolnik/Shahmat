@@ -3,8 +3,9 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
 import { GameManager } from './gameManager.js'
-import { validateAuth } from './auth.js'
+import { validateAuth, extractUserFromInitData } from './auth.js'
 import { initBot, notifyGameFinished, notifyDraw } from './bot.js'
+import { roomManager } from './roomManager.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -40,6 +41,9 @@ app.get('/health', (req, res) => {
 
 const gameManager = new GameManager()
 
+// Инициализация RoomManager
+roomManager.init(gameManager)
+
 // Инициализация бота
 if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE') {
   initBot(gameManager)
@@ -52,11 +56,115 @@ if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE') {
 app.post('/api/auth', async (req, res) => {
   try {
     const { initData } = req.body
-    // В реальном приложении здесь должна быть валидация через Telegram
-    const user = validateAuth(initData)
+    const botToken = process.env.BOT_TOKEN
+    const user = validateAuth(initData, botToken)
     res.json({ success: true, user })
   } catch (error) {
     res.status(401).json({ success: false, error: error.message })
+  }
+})
+
+// ========== API для комнат ==========
+
+// Создать комнату
+app.post('/api/create-room', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    const initData = authHeader?.replace('Bearer ', '') || req.body.initData
+    const botToken = process.env.BOT_TOKEN
+    
+    const user = validateAuth(initData, botToken)
+    
+    const { withFuki = true, randomColor = true, source = 'private', chatId = null } = req.body
+
+    const result = roomManager.createRoom({
+      creatorTgId: user.id,
+      creatorUsername: user.username,
+      withFuki,
+      randomColor,
+      source,
+      chatId
+    })
+
+    res.json({ success: true, ...result })
+  } catch (error) {
+    console.error('Ошибка создания комнаты:', error)
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Присоединиться к комнате
+app.post('/api/join-room', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    const initData = authHeader?.replace('Bearer ', '') || req.body.initData
+    const botToken = process.env.BOT_TOKEN
+    
+    const user = validateAuth(initData, botToken)
+    const { roomCode } = req.body
+
+    if (!roomCode) {
+      return res.status(400).json({ success: false, error: 'Код комнаты не указан' })
+    }
+
+    const roomData = roomManager.joinRoom(roomCode, user.id, user.username)
+
+    if (!roomData) {
+      return res.status(404).json({ success: false, error: 'Комната не найдена или уже заполнена' })
+    }
+
+    res.json({ success: true, ...roomData })
+  } catch (error) {
+    console.error('Ошибка присоединения к комнате:', error)
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Установить готовность
+app.post('/api/set-ready', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    const initData = authHeader?.replace('Bearer ', '') || req.body.initData
+    const botToken = process.env.BOT_TOKEN
+    
+    const user = validateAuth(initData, botToken)
+    const { roomCode } = req.body
+
+    if (!roomCode) {
+      return res.status(400).json({ success: false, error: 'Код комнаты не указан' })
+    }
+
+    const roomData = roomManager.setReady(roomCode, user.id)
+
+    if (!roomData) {
+      return res.status(404).json({ success: false, error: 'Комната не найдена или вы не участник' })
+    }
+
+    res.json({ success: true, ...roomData })
+  } catch (error) {
+    console.error('Ошибка установки готовности:', error)
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Получить статус комнаты
+app.get('/api/room-status', async (req, res) => {
+  try {
+    const { code } = req.query
+    if (!code) {
+      return res.status(400).json({ success: false, error: 'Код комнаты не указан' })
+    }
+
+    const room = roomManager.getRoom(code)
+    if (!room) {
+      return res.status(404).json({ success: false, error: 'Комната не найдена' })
+    }
+
+    const roomData = roomManager.getRoomData(room)
+    res.json({ success: true, ...roomData })
+  } catch (error) {
+    console.error('Ошибка получения статуса комнаты:', error)
+    res.status(400).json({ success: false, error: error.message })
   }
 })
 

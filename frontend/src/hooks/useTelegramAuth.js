@@ -27,8 +27,12 @@ export const useTelegramAuth = () => {
         localStorage.setItem('userId', userData.id.toString())
         setIsAuthenticated(true)
         
-        // Возвращаем gameId из URL, если есть
-        return { gameId: urlGameId, userId: userData.id }
+        // Проверяем start_param для deep links комнат
+        const startParam = tg.initDataUnsafe?.start_param
+        const roomCode = startParam?.startsWith('room-') ? startParam.replace('room-', '') : null
+        
+        // Возвращаем gameId из URL или roomCode из start_param
+        return { gameId: urlGameId || roomCode, userId: userData.id, roomCode }
       } else {
         // Для разработки без Telegram
         if (import.meta.env.DEV) {

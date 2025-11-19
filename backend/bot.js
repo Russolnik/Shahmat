@@ -1,6 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { GameManager } from './gameManager.js'
 import { validateAuth } from './auth.js'
+import { roomManager } from './roomManager.js'
 
 // Токен бота из переменных окружения
 const BOT_TOKEN = process.env.BOT_TOKEN || 'YOUR_BOT_TOKEN_HERE'
@@ -31,6 +32,7 @@ const playerReady = new Map()
 // Инициализация менеджера игр
 export const initBot = (gm) => {
   gameManager = gm
+  roomManager.init(gm)
   console.log('🤖 Telegram бот инициализирован')
 }
 
@@ -41,10 +43,21 @@ if (bot) {
     const userId = msg.from.id
     const username = msg.from.username || msg.from.first_name
 
-    // Проверяем, есть ли параметр gameId в команде (для приглашений)
+    // Проверяем, есть ли параметр startapp (для Mini App deep links)
     const args = msg.text.split(' ')
     if (args.length > 1 && args[1]) {
-      const gameId = args[1].trim().toUpperCase()
+      const param = args[1].trim()
+      
+      // Обработка deep link для комнаты: room-XXXXXX
+      if (param.startsWith('room-')) {
+        const roomCode = param.replace('room-', '').toUpperCase()
+        console.log(`🔗 Обработка deep link для комнаты ${roomCode} от пользователя ${userId}`)
+        await handleRoomJoin(chatId, userId, username, roomCode, msg.from.first_name)
+        return
+      }
+      
+      // Старая обработка gameId (для обратной совместимости)
+      const gameId = param.toUpperCase()
       console.log(`🔗 Обработка /start команды с gameId: ${gameId} от пользователя ${userId}`)
       await handleJoin(chatId, userId, username, gameId, msg.from.first_name)
       return
@@ -692,8 +705,137 @@ if (bot) {
       reply_markup: keyboard
     })
   })
+
+  // Команда /glass - создание игры из группы
+  bot.onText(/\/glass/, async (msg) => {
+    const chatId = msg.chat.id
+    const userId = msg.from.id
+    const username = msg.from.username || msg.from.first_name
+    const firstName = msg.from.first_name
+
+    // Определяем, группа это или личный чат
+    const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup'
+
+    try {
+      // Создаем комнату через roomManager
+      const result = roomManager.createRoom({
+        creatorTgId: userId,
+        creatorUsername: username,
+        withFuki: true,
+        randomColor: true,
+        source: isGroup ? 'group' : 'private',
+        chatId: isGroup ? chatId : null
+      })
+
+      const message = `
+🎮 <b>Новая игра в шашки!</b>
+
+👤 <b>Создал:</b> @${username}
+🆔 <b>Код комнаты:</b> <code>${result.roomCode}</code>
+🎯 <b>Режим:</b> ${result.gameConfig?.withFuki ? 'С фуками' : 'Без фуков'}
+
+Нажмите кнопку ниже, чтобы присоединиться к игре!
+      `
+
+      const keyboard = {
+        inline_keyboard: [
+          [
+            { 
+              text: '🎮 Присоединиться к игре', 
+              web_app: { url: `${MINI_APP_URL}?startapp=room-${result.roomCode}` }
+            }
+          ],
+          [
+            { 
+              text: '🔗 Поделиться ссылкой', 
+              url: result.inviteLink
+            }
+          ]
+        ]
+      }
+
+      await bot.sendMessage(chatId, message, {
+        parse_mode: 'HTML',
+        reply_markup: keyboard
+      })
+
+      console.log(`✅ Создана комната ${result.roomCode} через команду /glass в ${isGroup ? 'группе' : 'личном чате'}`)
+    } catch (error) {
+      console.error('Ошибка создания игры через /glass:', error)
+      await bot.sendMessage(chatId, '❌ Не удалось создать игру. Попробуйте ещё раз.')
+    }
+  })
   
   console.log('🤖 Telegram бот запущен и готов к работе')
+}
+
+// Обработка присоединения через deep link комнаты
+async function handleRoomJoin(chatId, userId, username, roomCode, firstName) {
+  try {
+    console.log(`🔗 Обработка присоединения к комнате ${roomCode} от пользователя ${userId}`)
+
+    // Присоединяемся к комнате
+    const roomData = roomManager.joinRoom(roomCode, userId, username)
+
+    if (!roomData) {
+      await bot.sendMessage(chatId, `❌ Комната ${roomCode} не найдена или уже заполнена.`)
+      return
+    }
+
+    const message = `
+✅ <b>Вы присоединились к игре!</b>
+
+🆔 <b>Код комнаты:</b> <code>${roomCode}</code>
+👤 <b>Создатель:</b> @${roomData.creator.username}
+${roomData.joiner ? `👤 <b>Второй игрок:</b> @${roomData.joiner.username}` : '⏳ Ожидание второго игрока...'}
+
+Нажмите кнопку ниже, чтобы открыть игру и подтвердить готовность.
+    `
+
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { 
+            text: '🎮 Открыть игру', 
+            web_app: { url: `${MINI_APP_URL}?startapp=room-${roomCode}` }
+          }
+        ]
+      ]
+    }
+
+    await bot.sendMessage(chatId, message, {
+      parse_mode: 'HTML',
+      reply_markup: keyboard
+    })
+
+    // Уведомляем создателя, если второй игрок присоединился
+    if (roomData.joiner && roomData.joiner.username === username) {
+      const creatorChatId = await getChatIdByUserId(roomData.creator.tgId || roomManager.getRoom(roomCode)?.creator.tgId)
+      if (creatorChatId) {
+        await bot.sendMessage(creatorChatId, `
+👤 <b>К вам присоединился игрок!</b>
+
+🆔 <b>Код комнаты:</b> <code>${roomCode}</code>
+👤 <b>Игрок:</b> @${username}
+
+Откройте игру и нажмите "Готов", когда будете готовы начать!
+        `, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { 
+                text: '🎮 Открыть игру', 
+                web_app: { url: `${MINI_APP_URL}?startapp=room-${roomCode}` }
+              }
+            ]]
+          }
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Ошибка присоединения к комнате:', error)
+    await bot.sendMessage(chatId, `❌ ${error.message || 'Не удалось присоединиться к игре.'}`)
+  }
 }
 
 export default bot

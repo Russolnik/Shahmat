@@ -1,14 +1,59 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Шашки - Telegram Mini App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Русские Шашки - Glass Graphite</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              graphite: {
+                50: '#f6f7f8',
+                100: '#edeff1',
+                200: '#dce0e3',
+                300: '#bdc4c9',
+                400: '#9ba6ad',
+                500: '#7d8a94',
+                600: '#637079',
+                700: '#525d65',
+                800: '#444d53',
+                900: '#3a4045',
+                950: '#252a2e',
+              },
+              glass: {
+                light: 'rgba(255, 255, 255, 0.1)',
+                medium: 'rgba(255, 255, 255, 0.2)',
+                border: 'rgba(255, 255, 255, 0.15)',
+                dark: 'rgba(0, 0, 0, 0.5)',
+                panel: 'rgba(30, 30, 35, 0.65)',
+              }
+            },
+            backdropBlur: {
+              xs: '2px',
+              md: '12px',
+            },
+            animation: {
+              'float': 'float 6s ease-in-out infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="/src/index.css">
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="dark bg-grain">
+    <div id="root" class="relative z-10 h-screen w-screen"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
