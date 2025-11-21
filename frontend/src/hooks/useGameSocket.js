@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
 
-export const useGameSocket = (gameId) => {
+export const useGameSocket = (gameId, userId) => {
   const [socket, setSocket] = useState(null)
   const [connected, setConnected] = useState(false)
   const socketRef = useRef(null)
 
   useEffect(() => {
-    if (!gameId) {
+    if (!gameId || !userId) {
       if (socketRef.current) {
         socketRef.current.disconnect()
         socketRef.current = null
@@ -42,11 +42,9 @@ export const useGameSocket = (gameId) => {
 
     newSocket.on('connect', () => {
       setConnected(true)
-      // Получаем userId из localStorage или из Telegram
-      const userId = localStorage.getItem('userId') || '12345'
       // Нормализуем gameId перед отправкой
       const normalizedGameId = String(gameId).toUpperCase().trim()
-      console.log(`🔌 Socket подключен, присоединяемся к игре ${normalizedGameId}`)
+      console.log(`🔌 Socket подключен, присоединяемся к игре ${normalizedGameId} как пользователь ${userId}`)
       newSocket.emit('joinGame', normalizedGameId, userId)
       newSocket.userId = userId
     })

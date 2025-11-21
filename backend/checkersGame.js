@@ -319,13 +319,20 @@ export class CheckersGame {
         }
       }
       
+      // Добавляем информацию о превращении в объект хода
+      const executedMove = {
+        ...move,
+        isPromotion: result.becameKing
+      }
+
       return {
         success: true,
         becameKing: result.becameKing || false,
         mustContinueCapture: result.mustContinueCapture || false,
         gameOver: result.gameOver || false,
         fukiBurned: result.fukiBurned || false,
-        fukiBurnedPosition: result.burnedPosition || null
+        fukiBurnedPosition: result.burnedPosition || null,
+        executedMove: executedMove
       }
     }
 

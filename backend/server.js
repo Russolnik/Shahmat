@@ -545,7 +545,8 @@ io.on('connection', (socket) => {
           gameState: currentPlayerState,
           becameKing: result.becameKing || false,
           fukiBurned: result.fukiBurned || false,
-          fukiBurnedPosition: result.fukiBurnedPosition || null
+          fukiBurnedPosition: result.fukiBurnedPosition || null,
+          move: result.executedMove // Передаем совершенный ход для анимаций
         })
         
         // Уведомление о сгорании фишки в режиме фуков

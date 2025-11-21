@@ -143,7 +143,8 @@ if (bot) {
           { text: '🔍 Найти игру', callback_data: 'find_game' }
         ],
         [
-          { text: '📖 Правила', callback_data: 'rules' }
+          { text: '📖 Правила', callback_data: 'rules' },
+          { text: '🔄 Сброс игры', callback_data: 'reset_game' }
         ],
         [
           { 
@@ -229,7 +230,8 @@ if (bot) {
                 { text: '🔍 Найти игру', callback_data: 'find_game' }
               ],
               [
-                { text: '📖 Правила', callback_data: 'rules' }
+                { text: '📖 Правила', callback_data: 'rules' },
+                { text: '🔄 Сброс игры', callback_data: 'reset_game' }
               ],
               [
                 { 
@@ -240,6 +242,8 @@ if (bot) {
             ]
           }
         })
+      } else if (data === 'reset_game') {
+        await handleResetGame(chatId, userId)
       } else if (data.startsWith('invite_')) {
         const gameId = data.replace('invite_', '')
         await handleInvite(chatId, userId, username, gameId)
@@ -355,6 +359,64 @@ async function handleFindGame(chatId, userId) {
     if (msg.chat.id === chatId && msg.text && !msg.text.startsWith('/')) {
       const gameId = msg.text.trim().toUpperCase()
       await handleJoin(chatId, userId, msg.from.username || msg.from.first_name, gameId, msg.from.first_name)
+      bot.removeListener('message', messageHandler)
+    }
+  }
+  
+  bot.on('message', messageHandler)
+  
+  // Удаляем обработчик через 60 секунд
+  setTimeout(() => {
+    bot.removeListener('message', messageHandler)
+  }, 60000)
+}
+
+// Сброс игры
+async function handleResetGame(chatId, userId) {
+  const message = `
+🔄 <b>Сброс игры</b>
+
+Введите ID игры, которую вы хотите завершить или сбросить.
+Это удалит игру с сервера.
+  `
+
+  await bot.sendMessage(chatId, message, {
+    parse_mode: 'HTML',
+    reply_markup: {
+      force_reply: true,
+      input_field_placeholder: 'Введите ID игры'
+    }
+  })
+
+  // Сохраняем состояние ожидания ID
+  const messageHandler = async (msg) => {
+    if (msg.chat.id === chatId && msg.text && !msg.text.startsWith('/')) {
+      const gameId = msg.text.trim().toUpperCase()
+      
+      if (gameManager && gameManager.games) {
+        const game = gameManager.getGame(gameId)
+        
+        if (game) {
+          // Проверяем права (создатель или участник)
+          const normalizedUserId = Number(userId) || userId
+          const isParticipant = 
+            (game.players.white && (game.players.white.id === normalizedUserId || game.players.white.id === userId)) ||
+            (game.players.black && (game.players.black.id === normalizedUserId || game.players.black.id === userId)) ||
+            (game.creator && (game.creator.id === normalizedUserId || game.creator.id === userId))
+            
+          if (isParticipant) {
+            gameManager.games.delete(gameId)
+            await bot.sendMessage(chatId, `✅ Игра ${gameId} успешно сброшена (удалена).`)
+          } else {
+            await bot.sendMessage(chatId, `❌ Вы не являетесь участником или создателем игры ${gameId}.`)
+          }
+        } else {
+          await bot.sendMessage(chatId, `❌ Игра ${gameId} не найдена.`)
+        }
+      } else {
+        await bot.sendMessage(chatId, `❌ Ошибка доступа к менеджеру игр.`)
+      }
+      
       bot.removeListener('message', messageHandler)
     }
   }

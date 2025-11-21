@@ -36,7 +36,7 @@ function App() {
   const prevFukiModeRef = useRef(null)
   
   const { user, isAuthenticated, initTelegram, urlParams } = useTelegramAuth()
-  const { socket, connected } = useGameSocket(gameId)
+  const { socket, connected } = useGameSocket(gameId, user?.id)
   const { theme, toggleTheme } = useTheme()
   const { notifications, showSuccess, showError, showInfo, removeNotification } = useNotifications()
 
@@ -219,7 +219,7 @@ function App() {
 
         // Получаем возможные ходы
         const mustCaptureFrom = state.mustCaptureFrom ? 
-          { row: state.mustCaptureFrom.row, col: state.mustCaptureFrom.col } : null
+          { ...state.mustCaptureFrom } : null
         const validMoves = getAllValidMoves(pieces, currentPlayerColor, mustCaptureFrom)
 
         // Проверяем изменение режима фуков
@@ -360,7 +360,7 @@ function App() {
               (result.gameState.currentPlayer === 'white' ? PieceColor.WHITE : PieceColor.BLACK)
             
             const mustCaptureFrom = result.gameState.mustCaptureFrom ? 
-              { row: result.gameState.mustCaptureFrom.row, col: result.gameState.mustCaptureFrom.col } : null
+              { ...result.gameState.mustCaptureFrom } : null
             const validMoves = getAllValidMoves(pieces, currentPlayerColor, mustCaptureFrom)
 
             // ВАЖНО: Сохраняем myPlayerColor из предыдущего состояния
