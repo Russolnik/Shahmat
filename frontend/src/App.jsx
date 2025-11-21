@@ -950,14 +950,19 @@ function App() {
             {loading ? 'Создание...' : 'Создать новую игру'}
           </button>
         </div>
+      ) : gameId && !gameState ? (
+        <div className="game-setup">
+          <h1 className="title">🎮 Шашки</h1>
+          <LoadingSpinner message="Подключение к игре..." />
+        </div>
       ) : (
         <>
-          {!connected && (
+          {!connected && !loading && (
             <div className="connection-status">
               <LoadingSpinner message="Подключение к игре..." />
             </div>
           )}
-          <OldGameInfo gameState={gameState} user={user} gameId={gameId} />
+          {gameState && <OldGameInfo gameState={gameState} user={user} gameId={gameId} />}
           {gameState?.status === 'waiting' && (
             <ReadyButton
               gameState={gameState}
