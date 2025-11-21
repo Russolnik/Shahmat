@@ -897,31 +897,43 @@ function App() {
             </div>
           )}
         </div>
-      ) : gameState?.status === 'finished' || (gameId && !gameState && !loading) ? (
+      ) : gameState?.status === 'finished' ? (
         <div className="game-setup">
           <h1 className="title">🎮 Шашки</h1>
           <div className="game-finished-message">
-            {gameState?.status === 'finished' ? (
-              <>
-                <p className="finished-text">
-                  {gameState?.winner === gameState?.myPlayer 
-                    ? '🎉 Поздравляем! Вы выиграли!'
-                    : gameState?.winner === 'draw'
-                    ? '🤝 Ничья!'
-                    : '😔 Игра завершена'}
-                </p>
-                <p className="game-id-text">ID игры: <code>{gameId}</code></p>
-              </>
-            ) : (
-              <>
-                <p className="error-text">Не удалось подключиться к игре</p>
-                <p className="game-id-text">ID игры: <code>{gameId}</code></p>
-                {error && (
-                  <p className="error-text" style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
-                    {error}
-                  </p>
-                )}
-              </>
+            <p className="finished-text">
+              {gameState?.winner === gameState?.myPlayer 
+                ? '🎉 Поздравляем! Вы выиграли!'
+                : gameState?.winner === 'draw'
+                ? '🤝 Ничья!'
+                : '😔 Игра завершена'}
+            </p>
+            <p className="game-id-text">ID игры: <code>{gameId}</code></p>
+          </div>
+          <button 
+            onClick={handleClearGame} 
+            className="btn-primary"
+          >
+            🧹 Очистить игру
+          </button>
+          <button 
+            onClick={createGame} 
+            className="btn-secondary"
+            disabled={loading}
+          >
+            {loading ? 'Создание...' : 'Создать новую игру'}
+          </button>
+        </div>
+      ) : gameId && !gameState && !loading && error ? (
+        <div className="game-setup">
+          <h1 className="title">🎮 Шашки</h1>
+          <div className="game-finished-message">
+            <p className="error-text">Не удалось подключиться к игре</p>
+            <p className="game-id-text">ID игры: <code>{gameId}</code></p>
+            {error && (
+              <p className="error-text" style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                {error}
+              </p>
             )}
           </div>
           <button 
