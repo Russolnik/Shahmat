@@ -373,71 +373,65 @@ async function handleFindGame(chatId, userId) {
 
 // Сброс игры
 async function handleResetGame(chatId, userId) {
-  const message = `
-🔄 <b>Сброс игры</b>
+  if (!gameManager || !gameManager.games) {
+    await bot.sendMessage(chatId, `❌ Ошибка доступа к менеджеру игр.`)
+    return
+  }
 
-Введите ID игры, которую вы хотите завершить или сбросить.
-Это удалит игру с сервера.
-  `
-
-  await bot.sendMessage(chatId, message, {
-    parse_mode: 'HTML',
-    reply_markup: {
-      force_reply: true,
-      input_field_placeholder: 'Введите ID игры'
-    }
-  })
-
-  // Сохраняем состояние ожидания ID
-  const messageHandler = async (msg) => {
-    if (msg.chat.id === chatId && msg.text && !msg.text.startsWith('/')) {
-      const gameId = msg.text.trim().toUpperCase()
-      
-      if (gameManager && gameManager.games) {
-        const game = gameManager.getGame(gameId)
-        
-        if (game) {
-          // Проверяем права (создатель или участник)
-          const normalizedUserId = Number(userId) || userId
-          const isParticipant = 
-            (game.players.white && (game.players.white.id === normalizedUserId || game.players.white.id === userId)) ||
-            (game.players.black && (game.players.black.id === normalizedUserId || game.players.black.id === userId)) ||
-            (game.creator && (game.creator.id === normalizedUserId || game.creator.id === userId))
-            
-          if (isParticipant) {
-            gameManager.games.delete(gameId)
-            // Отправляем сообщение с кнопкой для очистки параметров в веб-приложении
-            await bot.sendMessage(chatId, `✅ Игра ${gameId} успешно сброшена (удалена).\n\nОткройте приложение для очистки параметров:`, {
-              parse_mode: 'HTML',
-              reply_markup: {
-                inline_keyboard: [[
-                  { 
-                    text: '🧹 Очистить игру', 
-                    web_app: { url: `${MINI_APP_URL}?clearGame=true` }
-                  }
-                ]]
-              }
-            })
-          } else {
-            await bot.sendMessage(chatId, `❌ Вы не являетесь участником или создателем игры ${gameId}.`)
-          }
-        } else {
-          await bot.sendMessage(chatId, `❌ Игра ${gameId} не найдена.`)
-        }
-      } else {
-        await bot.sendMessage(chatId, `❌ Ошибка доступа к менеджеру игр.`)
-      }
-      
-      bot.removeListener('message', messageHandler)
+  // Нормализуем userId
+  const normalizedUserId = Number(userId) || userId
+  
+  // Ищем игру, в которой участвует пользователь
+  let foundGame = null
+  let foundGameId = null
+  
+  for (const [gameId, game] of gameManager.games.entries()) {
+    const isParticipant = 
+      (game.players.white && (game.players.white.id === normalizedUserId || game.players.white.id === userId)) ||
+      (game.players.black && (game.players.black.id === normalizedUserId || game.players.black.id === userId)) ||
+      (game.creator && (game.creator.id === normalizedUserId || game.creator.id === userId))
+    
+    if (isParticipant) {
+      foundGame = game
+      foundGameId = gameId
+      break
     }
   }
   
-  bot.on('message', messageHandler)
-  
-  // Удаляем обработчик через 60 секунд
-  setTimeout(() => {
-    bot.removeListener('message', messageHandler)
-  }, 60000)
+  if (foundGame && foundGameId) {
+    // Удаляем игру
+    gameManager.games.delete(foundGameId)
+    // Очищаем готовность игроков
+    if (playerReady.has(foundGameId)) {
+      playerReady.delete(foundGameId)
+    }
+    
+    // Отправляем сообщение с кнопкой для очистки параметров в веб-приложении
+    await bot.sendMessage(chatId, `✅ Игра ${foundGameId} успешно сброшена (удалена).\n\nОткройте приложение для очистки параметров:`, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[
+          { 
+            text: '🎮 Открыть приложение', 
+            web_app: { url: `${MINI_APP_URL}?clearGame=true` }
+          }
+        ]]
+      }
+    })
+  } else {
+    // Игра не найдена, но всё равно предлагаем очистить параметры
+    await bot.sendMessage(chatId, `ℹ️ Активная игра не найдена.\n\nОткройте приложение для очистки параметров:`, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[
+          { 
+            text: '🎮 Открыть приложение', 
+            web_app: { url: `${MINI_APP_URL}?clearGame=true` }
+          }
+        ]]
+      }
+    })
+  }
 }
 
 // Приглашение друга (заглушка, можно расширить)
@@ -765,7 +759,15 @@ export const notifyGameFinished = async (gameId, winner, loser) => {
 
 Спасибо за игру! 🎮
         `, {
-          parse_mode: 'HTML'
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { 
+                text: '🎮 Открыть приложение', 
+                web_app: { url: MINI_APP_URL }
+              }
+            ]]
+          }
         })
       } catch (err) {
         console.error('Ошибка отправки сообщения победителю:', err.message)
@@ -782,7 +784,15 @@ export const notifyGameFinished = async (gameId, winner, loser) => {
 
 Не расстраивайтесь, попробуйте ещё раз! 🎮
         `, {
-          parse_mode: 'HTML'
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { 
+                text: '🎮 Открыть приложение', 
+                web_app: { url: MINI_APP_URL }
+              }
+            ]]
+          }
         })
       } catch (err) {
         console.error('Ошибка отправки сообщения проигравшему:', err.message)
@@ -811,7 +821,15 @@ export const notifyPlayerLeft = async (gameId, leavingPlayer, winner, loser) => 
 
 Спасибо за игру! 🎮
         `, {
-          parse_mode: 'HTML'
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { 
+                text: '🎮 Открыть приложение', 
+                web_app: { url: MINI_APP_URL }
+              }
+            ]]
+          }
         })
       } catch (err) {
         console.error('Ошибка отправки сообщения победителю (выход):', err.message)
@@ -828,7 +846,15 @@ export const notifyPlayerLeft = async (gameId, leavingPlayer, winner, loser) => 
 
 Не расстраивайтесь, попробуйте ещё раз! 🎮
         `, {
-          parse_mode: 'HTML'
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { 
+                text: '🎮 Открыть приложение', 
+                web_app: { url: MINI_APP_URL }
+              }
+            ]]
+          }
         })
       } catch (err) {
         console.error('Ошибка отправки сообщения проигравшему (выход):', err.message)
@@ -857,14 +883,34 @@ export const notifyDraw = async (gameId, player1, player2) => {
 
     if (chatId1) {
       try {
-        await bot.sendMessage(chatId1, message, { parse_mode: 'HTML' })
+        await bot.sendMessage(chatId1, message, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { 
+                text: '🎮 Открыть приложение', 
+                web_app: { url: MINI_APP_URL }
+              }
+            ]]
+          }
+        })
       } catch (err) {
         console.error('Ошибка отправки сообщения о ничьей (игрок 1):', err.message)
       }
     }
     if (chatId2) {
       try {
-        await bot.sendMessage(chatId2, message, { parse_mode: 'HTML' })
+        await bot.sendMessage(chatId2, message, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { 
+                text: '🎮 Открыть приложение', 
+                web_app: { url: MINI_APP_URL }
+              }
+            ]]
+          }
+        })
       } catch (err) {
         console.error('Ошибка отправки сообщения о ничьей (игрок 2):', err.message)
       }

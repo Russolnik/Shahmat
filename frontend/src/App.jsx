@@ -133,6 +133,20 @@ function App() {
           socket.emit('joinGame', data.gameId || normalizedCode, user.id)
         }
       } else {
+        // Если комната не найдена, очищаем состояние
+        if (response.status === 404 || data.error === 'Комната не найдена' || data.error?.includes('не найдена')) {
+          console.log('❌ Комната не найдена, сбрасываем все состояние и переходим на главную')
+          setGameId(null)
+          localStorage.removeItem('currentGameId')
+          setGameState(null)
+          setSelectedPieceId(null)
+          setLastMove(null)
+          setPlayerReady({ white: false, black: false })
+          setGameTimer(0)
+          setHuffedPosition(null)
+          setShowSeriesAlert(false)
+        }
+        
         const errorMsg = data.error || 'Не удалось присоединиться к комнате'
         setError(errorMsg)
         showError(errorMsg, 1000)
@@ -144,6 +158,17 @@ function App() {
       setError(errorMsg)
       showError(errorMsg, 1000)
       setLoading(false)
+      
+      // Очищаем состояние при ошибке
+      setGameId(null)
+      localStorage.removeItem('currentGameId')
+      setGameState(null)
+      setSelectedPieceId(null)
+      setLastMove(null)
+      setPlayerReady({ white: false, black: false })
+      setGameTimer(0)
+      setHuffedPosition(null)
+      setShowSeriesAlert(false)
     }
   }
 
@@ -181,11 +206,18 @@ function App() {
         setError(null)
         showInfo('Вы присоединились к игре!', 1000)
       } else {
-        // Если игра не найдена, сбрасываем текущую игру
-        if (response.status === 404 || data.error === 'Игра не найдена') {
-          console.log('❌ Игра не найдена, сбрасываем gameId')
+        // Если игра не найдена, сбрасываем текущую игру и переходим на главную
+        if (response.status === 404 || data.error === 'Игра не найдена' || data.error?.includes('не найдена')) {
+          console.log('❌ Игра не найдена, сбрасываем все состояние и переходим на главную')
           setGameId(null)
           localStorage.removeItem('currentGameId')
+          setGameState(null)
+          setSelectedPieceId(null)
+          setLastMove(null)
+          setPlayerReady({ white: false, black: false })
+          setGameTimer(0)
+          setHuffedPosition(null)
+          setShowSeriesAlert(false)
         }
         
         const errorMsg = data.error || 'Не удалось присоединиться к игре'
@@ -362,6 +394,22 @@ function App() {
     socket.on('connect_error', (error) => {
       console.error('❌ Ошибка подключения socket:', error)
       setLoading(false)
+      
+      // Если не удается подключиться к игре, очищаем состояние
+      if (gameId) {
+        console.log('❌ Не удалось подключиться к игре, очищаем состояние')
+        setTimeout(() => {
+          setGameId(null)
+          localStorage.removeItem('currentGameId')
+          setGameState(null)
+          setSelectedPieceId(null)
+          setLastMove(null)
+          setPlayerReady({ white: false, black: false })
+          setGameTimer(0)
+          setHuffedPosition(null)
+          setShowSeriesAlert(false)
+        }, 2000) // Даем время показать ошибку
+      }
     })
 
     socket.on('moveResult', (result) => {
@@ -462,11 +510,18 @@ function App() {
       showError(msg, 1000)
       
       // Если игра не найдена (удалена или сброшена), очищаем состояние
-      if (msg.includes('не найдена')) {
-        console.log('❌ Игра не найдена (socket), сбрасываем состояние')
+      if (msg.includes('не найдена') || msg.includes('не существует') || msg.includes('удалена')) {
+        console.log('❌ Игра не найдена (socket), сбрасываем состояние и переходим на главную')
         setGameId(null)
         localStorage.removeItem('currentGameId')
         setGameState(null)
+        setSelectedPieceId(null)
+        setLastMove(null)
+        setPlayerReady({ white: false, black: false })
+        setGameTimer(0)
+        setHuffedPosition(null)
+        setShowSeriesAlert(false)
+        setLoading(false)
       }
     })
 
