@@ -343,6 +343,23 @@ export class CheckersGame {
       this.playerConnected.black = false
     }
   }
+
+  passTurn(playerColor) {
+    if (this.status !== 'active') return { success: false, error: 'Игра не активна' }
+    
+    // Check correct player
+    if (this.currentPlayer !== playerColor) return { success: false, error: 'Сейчас не ваш ход' }
+
+    // Can only pass if capture series is in progress
+    if (!this.mustCaptureFrom) return { success: false, error: 'Нельзя передать ход в данный момент' }
+
+    // Switch turn
+    this.currentPlayer = this.currentPlayer === 'white' ? 'black' : 'white'
+    this.mustCaptureFrom = null
+    this.lastActivityAt = Date.now()
+    
+    return { success: true }
+  }
   
   // Отметить игрока как отключенного
   setPlayerDisconnected(playerId) {

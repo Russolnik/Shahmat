@@ -20,13 +20,16 @@ interface GameInfoProps {
     spectatorCount?: number;
     hostConnected?: boolean;
     guestConnected?: boolean;
+    onPassTurn?: () => void;
+    canPassTurn?: boolean;
 }
 
 const GameInfo: React.FC<GameInfoProps> = ({ 
     hostName, hostColor, hostScore, hostId,
     guestName, guestColor, guestScore, guestId,
     turn, timer, myId, isSpectator, roomCode,
-    spectatorCount = 0, hostConnected = true, guestConnected = true
+    spectatorCount = 0, hostConnected = true, guestConnected = true,
+    onPassTurn, canPassTurn
 }) => {
   
   const formatTime = (s: number) => {
@@ -86,13 +89,22 @@ const GameInfo: React.FC<GameInfoProps> = ({
         {PlayerRow(hostName, hostColor, hostScore, hostId, true, hostConnected)}
 
         {/* 2. Timer (Center) */}
-        <div className="flex justify-center py-1 relative">
+        <div className="flex justify-center py-1 relative flex-col items-center gap-2">
             <div className="flex items-center gap-3 px-6 py-2 bg-black/30 rounded-full border border-white/5 shadow-inner relative z-10">
                 <Clock size={16} className={`text-blue-400 ${timer > 0 ? 'animate-pulse' : ''}`} />
                 <span className="font-mono text-xl font-bold tracking-widest text-blue-100">
                     {formatTime(timer)}
                 </span>
             </div>
+            
+            {canPassTurn && onPassTurn && (
+                <button 
+                    onClick={onPassTurn}
+                    className="px-4 py-1 bg-amber-500/80 hover:bg-amber-500 text-white text-xs font-bold rounded-full shadow-lg animate-pulse transition-all"
+                >
+                    Отдать ход
+                </button>
+            )}
             
             {/* Spectator Counter */}
             {spectatorCount > 0 && (

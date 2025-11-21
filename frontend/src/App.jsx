@@ -709,6 +709,11 @@ function App() {
     socket.emit('toggleFukiMode')
   }
 
+  const handlePassTurn = () => {
+    if (!socket) return
+    socket.emit('passTurn')
+  }
+
   return (
     <div className="app-container" data-theme={theme}>
       <div className="theme-toggle">
@@ -839,6 +844,8 @@ function App() {
                   roomCode={gameId}
                   hostConnected={gameState?.myPlayer === 'white' ? true : (gameState?.whiteConnected !== false)}
                   guestConnected={gameState?.myPlayer === 'black' ? true : (gameState?.blackConnected !== false)}
+                  onPassTurn={handlePassTurn}
+                  canPassTurn={!!gameState?.mustCaptureFrom && gameState?.currentPlayerColor === gameState?.myPlayerColor}
                 />
               </div>
               <GameControls

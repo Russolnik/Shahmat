@@ -41,6 +41,13 @@ export class GlassCheckersLogic {
     ]
 
     directions.forEach(dir => {
+      // Check restricted direction for Kings in multi-jump
+      if (mustCaptureFrom && mustCaptureFrom.restrictedDir && piece.isKing) {
+        if (dir.dr === mustCaptureFrom.restrictedDir.dr && dir.dc === mustCaptureFrom.restrictedDir.dc) {
+          return // Skip this direction
+        }
+      }
+
       let r = row + dir.dr
       let c = col + dir.dc
       
@@ -358,6 +365,23 @@ export class GlassCheckersLogic {
       p.position.row === move.to.row && 
       p.position.col === move.to.col
     )?.isKing && !piece.isKing
+
+    if (becameKing) {
+       // King promotion ends turn immediately (forced series break)
+       mustContinueCapture = false
+       nextMustCaptureFrom = null
+       // Turn switches to next player
+       nextPlayer = playerTurn === 'WHITE' ? 'BLACK' : 'WHITE'
+    } else if (mustContinueCapture && piece.isKing) {
+       // King capture constraint: cannot reverse direction 180 degrees
+       const dr = Math.sign(move.to.row - move.from.row)
+       const dc = Math.sign(move.to.col - move.from.col)
+       // Store restricted direction (where we came from)
+       // restrictedDir: { dr: -dr, dc: -dc }
+       if (nextMustCaptureFrom) {
+         nextMustCaptureFrom.restrictedDir = { dr: -dr, dc: -dc }
+       }
+    }
 
     // Проверка на сгорание фишки в режиме фуков
     const fukiBurned = fukiBurnedPieceId !== null

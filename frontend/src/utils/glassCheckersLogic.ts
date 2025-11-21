@@ -11,7 +11,7 @@ const isValidPos = (r: number, c: number) => r >= 0 && r < 8 && c >= 0 && c < 8;
 export const getMovesForPiece = (
   piece: Piece, 
   pieces: Piece[], 
-  mustCaptureFrom: Position | null = null
+  mustCaptureFrom: any = null
 ): Move[] => {
   // Multi-jump restriction
   if (mustCaptureFrom) {
@@ -34,6 +34,13 @@ export const getMovesForPiece = (
   ];
 
   directions.forEach(dir => {
+    // Check restricted direction for Kings in multi-jump
+    if (mustCaptureFrom && mustCaptureFrom.restrictedDir && piece.isKing) {
+      if (dir.dr === mustCaptureFrom.restrictedDir.dr && dir.dc === mustCaptureFrom.restrictedDir.dc) {
+        return; // Skip this direction
+      }
+    }
+
     let r = row + dir.dr;
     let c = col + dir.dc;
     
@@ -128,7 +135,7 @@ export const getMovesForPiece = (
 export const getAllValidMoves = (
   pieces: Piece[], 
   playerTurn: PieceColor,
-  mustCaptureFrom: Position | null
+  mustCaptureFrom: any
 ): Move[] => {
   let allMoves: Move[] = [];
   const playerPieces = pieces.filter(p => p.color === playerTurn);
