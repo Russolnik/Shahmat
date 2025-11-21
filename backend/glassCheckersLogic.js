@@ -325,6 +325,7 @@ export class GlassCheckersLogic {
         p.position.col === move.to.col
       )
       if (movedPiece) {
+        // Создаем объект для nextMustCaptureFrom (может содержать restrictedDir)
         const followUpMoves = this.getAllValidMoves(newPieces, playerTurn, null)
         const canContinue = followUpMoves.some(m => 
           m.isCapture && 
@@ -332,7 +333,11 @@ export class GlassCheckersLogic {
           m.from.col === move.to.col
         )
         if (canContinue) {
-          nextMustCaptureFrom = movedPiece.position
+          // Создаем объект с позицией (restrictedDir будет добавлен позже для дамки)
+          nextMustCaptureFrom = { 
+            row: movedPiece.position.row, 
+            col: movedPiece.position.col 
+          }
           nextPlayer = playerTurn // Остается тот же игрок
           mustContinueCapture = true
         }
@@ -380,6 +385,17 @@ export class GlassCheckersLogic {
        // restrictedDir: { dr: -dr, dc: -dc }
        if (nextMustCaptureFrom) {
          nextMustCaptureFrom.restrictedDir = { dr: -dr, dc: -dc }
+         
+         // Проверяем, есть ли еще доступные ходы с учетом ограничения направления
+         const availableMoves = this.getAllValidMoves(newPieces, playerTurn, nextMustCaptureFrom)
+         const hasValidMoves = availableMoves.some(m => m.isCapture)
+         
+         // Если нет доступных ходов (из-за ограничения направления), автоматически переключаем ход
+         if (!hasValidMoves) {
+           mustContinueCapture = false
+           nextMustCaptureFrom = null
+           nextPlayer = playerTurn === 'WHITE' ? 'BLACK' : 'WHITE'
+         }
        }
     }
 

@@ -9,6 +9,7 @@ export const useTelegramAuth = () => {
     const urlParams = new URLSearchParams(window.location.search)
     const urlGameId = urlParams.get('gameId')
     const urlUserId = urlParams.get('userId')
+    const clearGame = urlParams.get('clearGame')
 
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp
@@ -32,7 +33,7 @@ export const useTelegramAuth = () => {
         const roomCode = startParam?.startsWith('room-') ? startParam.replace('room-', '') : null
         
         // Возвращаем gameId из URL или roomCode из start_param
-        return { gameId: urlGameId || roomCode, userId: userData.id, roomCode }
+        return { gameId: urlGameId || roomCode, userId: userData.id, roomCode, clearGame }
       } else {
         // Для разработки без Telegram
         if (import.meta.env.DEV) {
@@ -46,7 +47,7 @@ export const useTelegramAuth = () => {
           setUser(userData)
           localStorage.setItem('userId', userData.id.toString())
           setIsAuthenticated(true)
-          return { gameId: urlGameId, userId: userData.id }
+          return { gameId: urlGameId, userId: userData.id, clearGame }
         }
       }
     } else if (import.meta.env.DEV) {
@@ -61,13 +62,13 @@ export const useTelegramAuth = () => {
       setUser(userData)
       localStorage.setItem('userId', userData.id.toString())
       setIsAuthenticated(true)
-      return { gameId: urlGameId, userId: userData.id }
+      return { gameId: urlGameId, userId: userData.id, clearGame }
     }
     
-    return { gameId: null, userId: null }
+    return { gameId: null, userId: null, clearGame }
   }
 
-  const [urlParams, setUrlParams] = useState({ gameId: null, userId: null })
+  const [urlParams, setUrlParams] = useState({ gameId: null, userId: null, clearGame: null })
 
   useEffect(() => {
     const params = initTelegram()

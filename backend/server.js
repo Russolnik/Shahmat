@@ -499,11 +499,7 @@ io.on('connection', (socket) => {
       return
     }
     
-    if (game.status !== 'waiting') {
-      socket.emit('error', { message: 'Режим фуков можно изменить только до начала игры' })
-      return
-    }
-    
+    // Разрешаем переключение режима фуков в любое время (но только создателю)
     const newMode = game.toggleFukiMode()
     console.log(`🔥 Режим фуков переключен на: ${newMode ? 'ВКЛ' : 'ВЫКЛ'} создателем ${normalizedUserId}`)
     
@@ -689,6 +685,32 @@ io.on('connection', (socket) => {
   socket.on('rejectDraw', () => {
     if (!socket.gameId) return
     io.to(`game:${socket.gameId}`).emit('drawRejected')
+  })
+
+  socket.on('passTurn', () => {
+    if (!socket.gameId) return
+    const game = gameManager.getGame(socket.gameId)
+    if (!game) return
+    
+    const playerColor = game.players.white?.id === socket.userId ? 'white' : 
+                       game.players.black?.id === socket.userId ? 'black' : null
+    
+    if (!playerColor) return
+
+    const result = game.passTurn(playerColor)
+    if (result.success) {
+       // Send update state
+        if (game.players.white) {
+          const whiteState = game.getState(game.players.white.id)
+          io.to(`game:${socket.gameId}`).emit('gameState', whiteState)
+        }
+        if (game.players.black) {
+          const blackState = game.getState(game.players.black.id)
+          io.to(`game:${socket.gameId}`).emit('gameState', blackState)
+        }
+    } else {
+        socket.emit('error', { message: result.error })
+    }
   })
 
   socket.on('disconnect', () => {

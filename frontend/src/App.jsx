@@ -53,6 +53,21 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated || !user) return
     
+    // Проверяем параметр очистки игры
+    if (urlParams?.clearGame === 'true') {
+      console.log('🧹 Очистка параметров игры по запросу')
+      setGameId(null)
+      localStorage.removeItem('currentGameId')
+      setGameState(null)
+      setSelectedPieceId(null)
+      setLastMove(null)
+      setPlayerReady({ white: false, black: false })
+      setGameTimer(0)
+      setHuffedPosition(null)
+      setShowSeriesAlert(false)
+      return
+    }
+    
     // Проверяем startapp параметр (для deep links комнат)
     const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
     if (startParam && startParam.startsWith('room-')) {
@@ -76,7 +91,7 @@ function App() {
       joinGameFromBot(gameId, user.id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlParams?.gameId, isAuthenticated, user?.id])
+  }, [urlParams?.gameId, urlParams?.clearGame, isAuthenticated, user?.id])
 
   // Присоединение к комнате через deep link
   const joinRoomFromDeepLink = async (roomCode) => {
@@ -166,6 +181,13 @@ function App() {
         setError(null)
         showInfo('Вы присоединились к игре!', 1000)
       } else {
+        // Если игра не найдена, сбрасываем текущую игру
+        if (response.status === 404 || data.error === 'Игра не найдена') {
+          console.log('❌ Игра не найдена, сбрасываем gameId')
+          setGameId(null)
+          localStorage.removeItem('currentGameId')
+        }
+        
         const errorMsg = data.error || 'Не удалось присоединиться к игре'
         setError(errorMsg)
         showError(errorMsg, 1000)
@@ -436,7 +458,16 @@ function App() {
     })
 
     socket.on('error', (error) => {
-      showError(error.message || 'Произошла ошибка', 1000)
+      const msg = error.message || 'Произошла ошибка'
+      showError(msg, 1000)
+      
+      // Если игра не найдена (удалена или сброшена), очищаем состояние
+      if (msg.includes('не найдена')) {
+        console.log('❌ Игра не найдена (socket), сбрасываем состояние')
+        setGameId(null)
+        localStorage.removeItem('currentGameId')
+        setGameState(null)
+      }
     })
 
     return () => {

@@ -406,7 +406,18 @@ async function handleResetGame(chatId, userId) {
             
           if (isParticipant) {
             gameManager.games.delete(gameId)
-            await bot.sendMessage(chatId, `✅ Игра ${gameId} успешно сброшена (удалена).`)
+            // Отправляем сообщение с кнопкой для очистки параметров в веб-приложении
+            await bot.sendMessage(chatId, `✅ Игра ${gameId} успешно сброшена (удалена).\n\nОткройте приложение для очистки параметров:`, {
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[
+                  { 
+                    text: '🧹 Очистить игру', 
+                    web_app: { url: `${MINI_APP_URL}?clearGame=true` }
+                  }
+                ]]
+              }
+            })
           } else {
             await bot.sendMessage(chatId, `❌ Вы не являетесь участником или создателем игры ${gameId}.`)
           }
