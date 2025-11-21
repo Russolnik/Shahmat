@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Board from './components/GlassBoard'
 import GlassGameInfo from './components/GlassGameInfo'
 import OldGameInfo from './components/GameInfo'
@@ -790,10 +790,14 @@ function App() {
     }
   }
   
-  const handleToggleFuki = () => {
-    if (!socket) return
+  const handleToggleFuki = useCallback(() => {
+    if (!socket) {
+      console.warn('⚠️ handleToggleFuki: socket не доступен')
+      return
+    }
+    console.log('🔥 Переключение режима фуков')
     socket.emit('toggleFukiMode')
-  }
+  }, [socket])
 
   const handlePassTurn = () => {
     if (!socket) return
@@ -1001,6 +1005,7 @@ function App() {
                 fukiMode={gameState?.fukiMode || false}
                 disabled={gameState?.status === 'finished'}
                 canLeave={gameState?.status === 'finished' || gameState?.status === 'waiting'}
+                isCreator={gameState?.isCreator || false}
               />
             </>
           )}
