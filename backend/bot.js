@@ -147,6 +147,9 @@ if (bot) {
           { text: '🔄 Сброс игры', callback_data: 'reset_game' }
         ],
         [
+          { text: '📤 Поделиться активной игрой', callback_data: 'share_active_game' }
+        ],
+        [
           { 
             text: '🎮 Открыть приложение', 
             web_app: { url: MINI_APP_URL }
@@ -234,6 +237,9 @@ if (bot) {
                 { text: '🔄 Сброс игры', callback_data: 'reset_game' }
               ],
               [
+                { text: '📤 Поделиться активной игрой', callback_data: 'share_active_game' }
+              ],
+              [
                 { 
                   text: '🎮 Открыть приложение', 
                   web_app: { url: MINI_APP_URL }
@@ -244,6 +250,8 @@ if (bot) {
         })
       } else if (data === 'reset_game') {
         await handleResetGame(chatId, userId)
+      } else if (data === 'share_active_game') {
+        await handleShareActiveGame(chatId, userId)
       } else if (data.startsWith('invite_')) {
         const gameId = data.replace('invite_', '')
         await handleInvite(chatId, userId, username, gameId)
@@ -256,6 +264,12 @@ if (bot) {
       } else if (data.startsWith('open_game_')) {
         const gameId = data.replace('open_game_', '')
         await handleOpenGame(chatId, userId, gameId)
+      } else if (data.startsWith('copy_game_id_')) {
+        const gameId = data.replace('copy_game_id_', '')
+        await safeAnswerCallback(query.id, {
+          text: `ID игры скопирован: ${gameId}`,
+          show_alert: false
+        })
       }
 
       await safeAnswerCallback(query.id)
@@ -425,6 +439,97 @@ async function handleResetGame(chatId, userId) {
             web_app: { url: `${MINI_APP_URL}?clearGame=true` }
           }
         ]]
+      }
+    })
+  }
+}
+
+// Поделиться активной игрой
+async function handleShareActiveGame(chatId, userId) {
+  if (!gameManager || !gameManager.games) {
+    await bot.sendMessage(chatId, `❌ Ошибка доступа к менеджеру игр.`)
+    return
+  }
+
+  // Нормализуем userId
+  const normalizedUserId = Number(userId) || userId
+  
+  // Ищем активную игру, в которой участвует пользователь
+  let foundGame = null
+  let foundGameId = null
+  
+  for (const [gameId, game] of gameManager.games.entries()) {
+    // Проверяем, является ли пользователь участником игры
+    const isParticipant = 
+      (game.players.white && (game.players.white.id === normalizedUserId || game.players.white.id === userId)) ||
+      (game.players.black && (game.players.black.id === normalizedUserId || game.players.black.id === userId))
+    
+    // Проверяем, что игра еще не завершена
+    if (isParticipant && game.status !== 'finished') {
+      foundGame = game
+      foundGameId = gameId
+      break
+    }
+  }
+  
+  if (foundGame && foundGameId) {
+    // Определяем статус игры
+    const statusText = foundGame.status === 'waiting' ? '⏳ Ожидание игроков' : 
+                      foundGame.status === 'active' ? '🎮 Игра идет' : '❓ Неизвестно'
+    
+    // Определяем, кто второй игрок (если есть)
+    const opponent = foundGame.players.white?.id === normalizedUserId 
+      ? foundGame.players.black 
+      : foundGame.players.white
+    
+    const opponentText = opponent ? `👤 Соперник: @${opponent.username || opponent.first_name || 'Ожидание...'}` : '⏳ Ожидание второго игрока'
+    
+    const message = `
+📤 <b>Поделиться активной игрой</b>
+
+🆔 <b>ID игры:</b> <code>${foundGameId}</code>
+📊 <b>Статус:</b> ${statusText}
+${opponentText}
+
+Отправьте этот ID другу, чтобы он мог присоединиться к игре.
+    `
+
+    await bot.sendMessage(chatId, message, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { 
+              text: '🎮 Открыть игру', 
+              web_app: { url: `${MINI_APP_URL}?gameId=${foundGameId}&userId=${userId}` }
+            }
+          ],
+          [
+            { 
+              text: '📋 Скопировать ID', 
+              callback_data: `copy_game_id_${foundGameId}`
+            }
+          ],
+          [
+            { 
+              text: '🔗 Поделиться ссылкой', 
+              url: `https://t.me/share/url?url=${encodeURIComponent(`${MINI_APP_URL}?gameId=${foundGameId}`)}&text=${encodeURIComponent(`Присоединяйся к игре в шашки! ID: ${foundGameId}`)}`
+            }
+          ]
+        ]
+      }
+    })
+  } else {
+    // Активная игра не найдена
+    await bot.sendMessage(chatId, `ℹ️ У вас нет активной игры.\n\nСоздайте новую игру или присоединитесь к существующей.`, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '🎮 Создать игру', callback_data: 'create_game' },
+            { text: '🔍 Найти игру', callback_data: 'find_game' }
+          ]
+        ]
       }
     })
   }
@@ -933,7 +1038,11 @@ if (bot) {
           { text: '🔍 Найти игру', callback_data: 'find_game' }
         ],
         [
-          { text: '📖 Правила', callback_data: 'rules' }
+          { text: '📖 Правила', callback_data: 'rules' },
+          { text: '🔄 Сброс игры', callback_data: 'reset_game' }
+        ],
+        [
+          { text: '📤 Поделиться активной игрой', callback_data: 'share_active_game' }
         ],
         [
           { 
