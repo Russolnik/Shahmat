@@ -286,6 +286,11 @@ function App() {
         // Это предотвращает скачки поворота доски
         const preservedMyPlayerColor = prevState?.myPlayerColor || myPlayerColor
         
+        // Явно сохраняем fukiMode из state (приоритет) или из предыдущего состояния
+        const currentFukiMode = state.fukiMode !== undefined ? state.fukiMode : (prevState?.fukiMode || false)
+        
+        console.log(`🔥 Обновление fukiMode: ${currentFukiMode} (из state: ${state.fukiMode}, из prevState: ${prevState?.fukiMode})`)
+        
         const newState = {
           ...state,
           pieces,
@@ -294,7 +299,8 @@ function App() {
           capturedWhite,
           capturedBlack,
           validMoves,
-          mustCaptureFrom
+          mustCaptureFrom,
+          fukiMode: currentFukiMode // Явно сохраняем fukiMode
         }
         
         // Уведомления о смене хода убраны по запросу

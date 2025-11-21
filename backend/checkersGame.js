@@ -384,7 +384,6 @@ export class CheckersGame {
   // Проверка, является ли игра неактивной (более 30 минут без активности)
   isInactive() {
     const INACTIVE_TIMEOUT = 30 * 60 * 1000 // 30 минут в миллисекундах
-    const timeSinceLastActivity = Date.now() - this.lastActivityAt
     
     // Если игра в статусе waiting и прошло 30 минут с создания
     if (this.status === 'waiting') {
@@ -392,7 +391,8 @@ export class CheckersGame {
       return timeSinceCreation > INACTIVE_TIMEOUT
     }
     
-    // Если игра активна или завершена, проверяем время последней активности
+    // Если игра активна или завершена, проверяем время последней активности (по последнему ходу)
+    const timeSinceLastActivity = Date.now() - this.lastActivityAt
     return timeSinceLastActivity > INACTIVE_TIMEOUT
   }
 }

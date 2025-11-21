@@ -381,17 +381,13 @@ async function handleResetGame(chatId, userId) {
   // Нормализуем userId
   const normalizedUserId = Number(userId) || userId
   
-  // Ищем игру, в которой участвует пользователь
+  // Ищем игру, которую создал пользователь (только создатель может удалить игру)
   let foundGame = null
   let foundGameId = null
   
   for (const [gameId, game] of gameManager.games.entries()) {
-    const isParticipant = 
-      (game.players.white && (game.players.white.id === normalizedUserId || game.players.white.id === userId)) ||
-      (game.players.black && (game.players.black.id === normalizedUserId || game.players.black.id === userId)) ||
-      (game.creator && (game.creator.id === normalizedUserId || game.creator.id === userId))
-    
-    if (isParticipant) {
+    // Проверяем, является ли пользователь создателем игры
+    if (game.isCreator(normalizedUserId)) {
       foundGame = game
       foundGameId = gameId
       break
@@ -419,8 +415,8 @@ async function handleResetGame(chatId, userId) {
       }
     })
   } else {
-    // Игра не найдена, но всё равно предлагаем очистить параметры
-    await bot.sendMessage(chatId, `ℹ️ Активная игра не найдена.\n\nОткройте приложение для очистки параметров:`, {
+    // Игра не найдена или пользователь не является создателем
+    await bot.sendMessage(chatId, `ℹ️ Вы не являетесь создателем активной игры.\n\nОткройте приложение для очистки параметров:`, {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [[
