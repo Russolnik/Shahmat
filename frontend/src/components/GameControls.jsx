@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './GameControls.css'
 
-const GameControls = ({ gameId, onSurrender, onDraw, onToggleFuki, onLeave, fukiMode = false, disabled = false, canLeave = false, isCreator = false }) => {
+const GameControls = ({ gameId, onSurrender, onDraw, onToggleFuki, onLeave, fukiMode = false, disabled = false, canLeave = false }) => {
   return (
     <div className="game-controls">
       <button 
@@ -26,17 +26,10 @@ const GameControls = ({ gameId, onSurrender, onDraw, onToggleFuki, onLeave, fuki
         Ничья?
       </button>
       <button 
-        type="button"
-        onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          if (onToggleFuki && !disabled && isCreator) {
-            onToggleFuki()
-          }
-        }} 
+        onClick={onToggleFuki} 
         className={`control-btn fuki ${fukiMode ? 'active' : ''}`}
-        disabled={disabled || !isCreator || !onToggleFuki}
-        title={isCreator ? (fukiMode ? 'Режим фуков включен' : 'Режим фуков выключен') : 'Только создатель игры может изменить режим фуков'}
+        disabled={disabled || !onToggleFuki}
+        title={fukiMode ? 'Режим фуков включен' : 'Режим фуков выключен'}
       >
         {fukiMode ? '🔥' : '♟️'}
       </button>

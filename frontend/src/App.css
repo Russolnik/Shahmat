@@ -99,40 +99,6 @@ html, body {
   width: 100%;
 }
 
-.game-finished-message {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.finished-text {
-  font-size: 1.25rem;
-  color: var(--text-primary);
-  margin: 0 0 0.5rem 0;
-  font-weight: 600;
-}
-
-.error-text {
-  font-size: 1.25rem;
-  color: var(--error-color, #ef4444);
-  margin: 0 0 0.5rem 0;
-  font-weight: 600;
-}
-
-.game-id-text {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin: 0.5rem 0 0 0;
-}
-
-.game-id-text code {
-  background: var(--glass-bg);
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9em;
-  border: 1px solid var(--glass-border);
-}
-
 .btn-primary,
 .btn-secondary {
   padding: 0.875rem 2rem;

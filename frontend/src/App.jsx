@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Board from './components/GlassBoard'
 import GlassGameInfo from './components/GlassGameInfo'
 import OldGameInfo from './components/GameInfo'
@@ -276,14 +276,9 @@ function App() {
           { ...state.mustCaptureFrom } : null
         const validMoves = getAllValidMoves(pieces, currentPlayerColor, mustCaptureFrom)
 
-        // Проверяем изменение режима фуков
-        const fukiModeChanged = prevState && prevState.fukiMode !== state.fukiMode
-        if (fukiModeChanged) {
-          if (prevFukiModeRef.current === state.fukiMode) {
-            console.log('🔥 Режим фуков изменен через gameState, уведомление уже показано')
-          } else {
-            prevFukiModeRef.current = state.fukiMode
-          }
+        // Обновляем ref для режима фуков (для предотвращения дублирования уведомлений)
+        if (prevFukiModeRef.current === null) {
+          prevFukiModeRef.current = state.fukiMode
         }
         
         // Обновляем состояние с новым форматом
@@ -374,10 +369,12 @@ function App() {
     socket.on('fukiModeChanged', (enabled) => {
       console.log(`🔥 Режим фуков: ${enabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}`)
       // Показываем уведомление только один раз при явном изменении
-      if (enabled) {
-        showInfo('🔥 Режим фуков включен!', 1000)
-      } else {
-        showInfo('♟️ Режим фуков выключен', 1000)
+      if (prevFukiModeRef.current !== null && prevFukiModeRef.current !== enabled) {
+        if (enabled) {
+          showInfo('🔥 Режим фуков включен!', 1000)
+        } else {
+          showInfo('♟️ Режим фуков выключен', 1000)
+        }
       }
       // Обновляем ref, чтобы не показывать уведомление при следующем gameState
       prevFukiModeRef.current = enabled
@@ -790,14 +787,10 @@ function App() {
     }
   }
   
-  const handleToggleFuki = useCallback(() => {
-    if (!socket) {
-      console.warn('⚠️ handleToggleFuki: socket не доступен')
-      return
-    }
-    console.log('🔥 Переключение режима фуков')
+  const handleToggleFuki = () => {
+    if (!socket) return
     socket.emit('toggleFukiMode')
-  }, [socket])
+  }
 
   const handlePassTurn = () => {
     if (!socket) return
@@ -957,12 +950,12 @@ function App() {
         </div>
       ) : (
         <>
-          {!connected && !loading && (
+          {!connected && (
             <div className="connection-status">
               <LoadingSpinner message="Подключение к игре..." />
             </div>
           )}
-          {gameState && <OldGameInfo gameState={gameState} user={user} gameId={gameId} />}
+          <OldGameInfo gameState={gameState} user={user} gameId={gameId} />
           {gameState?.status === 'waiting' && (
             <ReadyButton
               gameState={gameState}
@@ -1022,7 +1015,6 @@ function App() {
                 fukiMode={gameState?.fukiMode || false}
                 disabled={gameState?.status === 'finished'}
                 canLeave={gameState?.status === 'finished' || gameState?.status === 'waiting'}
-                isCreator={gameState?.isCreator || false}
               />
             </>
           )}
